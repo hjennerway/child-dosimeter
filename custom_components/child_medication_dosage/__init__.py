@@ -51,9 +51,7 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: ChildMedicationConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
 
     unload_ok = await hass.config_entries.async_unload_platforms(
@@ -64,9 +62,7 @@ async def async_unload_entry(
     return unload_ok
 
 
-async def async_reload_entry(
-    hass: HomeAssistant, entry: ChildMedicationConfigEntry
-) -> None:
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload the integration after options update."""
 
     await async_unload_entry(hass, entry)

@@ -10,7 +10,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import selector
 
 from .const import (
     ATTR_CHILD_ID,
@@ -30,16 +30,31 @@ def _child_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
         {
             vol.Required(
                 CONF_CHILD_NAME, default=defaults.get(CONF_CHILD_NAME, "")
-            ): cv.string,
+            ): selector.TextSelector(),
             vol.Required(
                 CONF_DATE_OF_BIRTH,
                 default=defaults.get(CONF_DATE_OF_BIRTH, date.today().isoformat()),
-            ): cv.date,
+            ): selector.DateSelector(),
             vol.Required(
                 CONF_WEIGHT_KG, default=defaults.get(CONF_WEIGHT_KG, 10.0)
-            ): vol.All(vol.Coerce(float), vol.Range(min=0.1, max=120)),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0.1,
+                    max=120,
+                    mode=selector.NumberSelectorMode.BOX,
+                    step=0.1,
+                )
+            ),
         }
     )
+
+
+def _date_string(value: Any) -> str:
+    """Return an ISO date string from selector input."""
+
+    if isinstance(value, date):
+        return value.isoformat()
+    return date.fromisoformat(str(value)).isoformat()
 
 
 class ChildMedicationDosageConfigFlow(
@@ -59,8 +74,8 @@ class ChildMedicationDosageConfigFlow(
             child = {
                 ATTR_CHILD_ID: uuid4().hex,
                 CONF_CHILD_NAME: user_input[CONF_CHILD_NAME].strip(),
-                CONF_DATE_OF_BIRTH: user_input[CONF_DATE_OF_BIRTH].isoformat(),
-                CONF_WEIGHT_KG: user_input[CONF_WEIGHT_KG],
+                CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
+                CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
             }
             if not child[CONF_CHILD_NAME]:
                 errors[CONF_CHILD_NAME] = "required"
@@ -108,8 +123,8 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
                 child = {
                     ATTR_CHILD_ID: uuid4().hex,
                     CONF_CHILD_NAME: name,
-                    CONF_DATE_OF_BIRTH: user_input[CONF_DATE_OF_BIRTH].isoformat(),
-                    CONF_WEIGHT_KG: user_input[CONF_WEIGHT_KG],
+                    CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
+                    CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
                 }
                 children = list(self._config_entry.data.get(CONF_CHILDREN, []))
                 children.append(child)
