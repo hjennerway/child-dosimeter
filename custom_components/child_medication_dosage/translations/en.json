@@ -1,0 +1,35 @@
+{
+  "title": "Child Medication Dosage",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add child",
+        "description": "Add a child to monitor paracetamol and ibuprofen doses.",
+        "data": {
+          "child_name": "Name",
+          "date_of_birth": "Date of birth",
+          "weight_kg": "Weight (kg)"
+        }
+      }
+    },
+    "error": {
+      "required": "This field is required."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Add another child",
+        "description": "Add another child to this medication tracker.",
+        "data": {
+          "child_name": "Name",
+          "date_of_birth": "Date of birth",
+          "weight_kg": "Weight (kg)"
+        }
+      }
+    },
+    "error": {
+      "required": "This field is required."
+    }
+  }
+}
