@@ -31,6 +31,7 @@ from .history import MedicationHistory
 
 SIGNAL_HISTORY_UPDATED = f"{DOMAIN}_history_updated"
 FRONTEND_URL_PATH = f"/{DOMAIN}"
+FRONTEND_ALIAS_URL_PATH = f"/{DOMAIN}/frontend"
 FRONTEND_PATH = Path(__file__).parent / "frontend"
 FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
 
@@ -64,7 +65,10 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     if hass.data.get(FRONTEND_REGISTERED):
         return
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(FRONTEND_URL_PATH, str(FRONTEND_PATH), True)]
+        [
+            StaticPathConfig(FRONTEND_URL_PATH, str(FRONTEND_PATH), True),
+            StaticPathConfig(FRONTEND_ALIAS_URL_PATH, str(FRONTEND_PATH), True),
+        ]
     )
     hass.data[FRONTEND_REGISTERED] = True
 

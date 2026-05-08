@@ -52,7 +52,8 @@ sensor entities are created.
 
 ## Add The Card
 
-Register the dashboard resource:
+The card is bundled inside the integration and served by Home Assistant after
+the integration is loaded. Register the dashboard resource:
 
 ```yaml
 lovelace:
@@ -60,6 +61,11 @@ lovelace:
     - url: /child_medication_dosage/child-dosage-card.js
       type: module
 ```
+
+Do not use a `/hacsfiles/...` URL for this repository. HACS installs this as an
+integration, not as a frontend/plugin repository, so the `/hacsfiles` path is
+not created. The compatibility URL
+`/child_medication_dosage/frontend/child-dosage-card.js` is also served.
 
 Then add a manual card:
 
