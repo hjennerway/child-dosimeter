@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, callback
@@ -28,6 +30,9 @@ from .dosing import recommended_rule
 from .history import MedicationHistory
 
 SIGNAL_HISTORY_UPDATED = f"{DOMAIN}_history_updated"
+FRONTEND_URL_PATH = f"/{DOMAIN}"
+FRONTEND_PATH = Path(__file__).parent / "frontend"
+FRONTEND_REGISTERED = f"{DOMAIN}_frontend_registered"
 
 
 async def async_setup_entry(
@@ -42,6 +47,8 @@ async def async_setup_entry(
         hass.data[DOMAIN] = {}
     hass.data[DOMAIN][entry.entry_id] = {"entry": entry, "history": history}
 
+    await _async_register_frontend(hass)
+
     await hass.config_entries.async_forward_entry_setups(
         entry, [Platform(platform) for platform in PLATFORMS]
     )
@@ -49,6 +56,17 @@ async def async_setup_entry(
 
     _async_register_services(hass)
     return True
+
+
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Serve the bundled Lovelace card from the integration directory."""
+
+    if hass.data.get(FRONTEND_REGISTERED):
+        return
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(FRONTEND_URL_PATH, str(FRONTEND_PATH), True)]
+    )
+    hass.data[FRONTEND_REGISTERED] = True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

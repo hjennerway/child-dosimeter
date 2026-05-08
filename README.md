@@ -31,11 +31,10 @@ The dose rules are based on the supplied photo:
 
 ## Install
 
-Copy these folders into your Home Assistant config directory:
+Copy the integration folder into your Home Assistant config directory:
 
 ```text
 custom_components/child_medication_dosage
-www/child-dosage-card.js
 ```
 
 Restart Home Assistant.
@@ -58,7 +57,7 @@ Register the dashboard resource:
 ```yaml
 lovelace:
   resources:
-    - url: /local/child-dosage-card.js
+    - url: /child_medication_dosage/child-dosage-card.js
       type: module
 ```
 
@@ -111,4 +110,5 @@ service: child_medication_dosage.clear_history
 ## Files
 
 - `custom_components/child_medication_dosage`: Home Assistant custom integration.
-- `www/child-dosage-card.js`: Lovelace custom card.
+- `custom_components/child_medication_dosage/frontend/child-dosage-card.js`:
+  bundled Lovelace custom card served by the integration.
