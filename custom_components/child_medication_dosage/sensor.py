@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import SIGNAL_HISTORY_UPDATED, children_from_entry
+from . import SIGNAL_HISTORY_UPDATED, children_from_entry, history_from_entry
 from .const import (
     ATTR_CHILD_ID,
     ATTR_CHILD_NAME,
@@ -40,7 +40,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up sensors for every configured child and medicine."""
 
-    history: MedicationHistory = entry.runtime_data
+    history = history_from_entry(hass, entry.entry_id)
     entities: list[SensorEntity] = []
     for child in children_from_entry(entry):
         for medicine in MEDICINES:

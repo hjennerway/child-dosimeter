@@ -27,23 +27,20 @@ from .const import (
 from .dosing import recommended_rule
 from .history import MedicationHistory
 
-type ChildMedicationConfigEntry = ConfigEntry[MedicationHistory]
-
 SIGNAL_HISTORY_UPDATED = f"{DOMAIN}_history_updated"
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ChildMedicationConfigEntry
+    hass: HomeAssistant, entry: ConfigEntry
 ) -> bool:
     """Set up Child Medication Dosage from a config entry."""
 
     history = MedicationHistory(hass)
     await history.async_load()
-    entry.runtime_data = history
 
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
-    hass.data[DOMAIN][entry.entry_id] = entry
+    hass.data[DOMAIN][entry.entry_id] = {"entry": entry, "history": history}
 
     await hass.config_entries.async_forward_entry_setups(
         entry, [Platform(platform) for platform in PLATFORMS]
@@ -89,10 +86,17 @@ def children_from_entry(entry: ConfigEntry) -> list[dict[str, Any]]:
     return children
 
 
+def history_from_entry(hass: HomeAssistant, entry_id: str) -> MedicationHistory:
+    """Return the medication history store for an entry."""
+
+    return hass.data[DOMAIN][entry_id]["history"]
+
+
 def find_child(hass: HomeAssistant, child_id: str) -> tuple[ConfigEntry, dict[str, Any]]:
     """Find a child across loaded entries."""
 
-    for entry in hass.data.get(DOMAIN, {}).values():
+    for entry_data in hass.data.get(DOMAIN, {}).values():
+        entry = entry_data["entry"]
         for child in children_from_entry(entry):
             if child[ATTR_CHILD_ID] == child_id:
                 return entry, child
@@ -112,7 +116,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         child_id = call.data[ATTR_CHILD_ID]
         medicine = call.data[ATTR_MEDICINE]
         entry, child = find_child(hass, child_id)
-        history = entry.runtime_data
+        history = history_from_entry(hass, entry.entry_id)
         dose_mg = call.data.get(ATTR_DOSE_MG)
         if dose_mg is None:
             rule = recommended_rule(
@@ -130,8 +134,8 @@ def _async_register_services(hass: HomeAssistant) -> None:
 
         child_id = call.data.get(ATTR_CHILD_ID)
         entries = hass.data.get(DOMAIN, {}).values()
-        for entry in entries:
-            await entry.runtime_data.async_clear(child_id)
+        for entry_data in entries:
+            await entry_data["history"].async_clear(child_id)
         async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, None)
 
     hass.services.async_register(
