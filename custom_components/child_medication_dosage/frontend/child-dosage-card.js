@@ -15,6 +15,8 @@ class ChildDosageCard extends HTMLElement {
       show_reset_button: true,
       show_child_name: true,
       show_child_age_weight: true,
+      paracetamol_dose_size: "120mg/5ml liquid",
+      ibuprofen_dose_size: "5ml/100mg",
       ...config,
     };
     this._root = this.attachShadow({ mode: "open" });
@@ -26,6 +28,7 @@ class ChildDosageCard extends HTMLElement {
         .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
         .details { display: grid; gap: 8px; min-width: 0; }
         .top { display: flex; justify-content: space-between; gap: 10px; }
+        .dose-size { color: var(--secondary-text-color); font-size: 12px; }
         .meta { color: var(--secondary-text-color); font-size: 12px; display: grid; gap: 4px; }
         .actions { display: grid; gap: 8px; justify-items: stretch; align-content: center; }
         button { border: 0; border-radius: 8px; min-height: 36px; padding: 8px 10px; font: inherit; font-weight: 600; color: #fff; background: var(--primary-color); }
@@ -89,10 +92,12 @@ class ChildDosageCard extends HTMLElement {
     const fillWidth = Math.min(100, percent);
     const barColor = this._barColor(percent);
     const last = a.last_dose_at ? this._formatDateTime(a.last_dose_at) : "No doses recorded";
+    const doseSize = this._doseSize(medicine);
     return `
       <div class="row">
         <div class="details">
           <div class="top"><b>${label}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
+          <div class="dose-size">Dose size: ${this._escape(doseSize.label)}</div>
           <div class="bar" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
           ${percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
           <div class="meta">
@@ -111,8 +116,9 @@ class ChildDosageCard extends HTMLElement {
   async _giveDose(medicine, button) {
     const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
     if (!childId) return;
+    const doseSize = this._doseSize(medicine);
     button.disabled = true;
-    try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine }); }
+    try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine, dose_mg: doseSize.mg }); }
     finally { button.disabled = false; }
   }
 
@@ -131,7 +137,7 @@ class ChildDosageCard extends HTMLElement {
       window.alert("No doses recorded in the last 48 hours.");
       return;
     }
-    const lines = log.map((event) => `• ${this._formatDateTime(event.given_at)} — ${this._formatMg(event.dose_mg)}`);
+    const lines = log.map((event) => `- ${this._formatDateTime(event.given_at)} - ${this._formatMg(event.dose_mg)}`);
     window.alert(`Doses in last 48 hours:\n\n${lines.join("\n")}`);
   }
 
@@ -163,6 +169,28 @@ class ChildDosageCard extends HTMLElement {
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
   _titleCase(value) { return String(value).charAt(0).toUpperCase() + String(value).slice(1); }
+  _doseSize(medicine) {
+    const options = {
+      paracetamol: {
+        "120mg/5ml liquid": 120,
+        "250mg/5ml liquid": 250,
+        "250mg tablet": 250,
+      },
+      ibuprofen: {
+        "2.5ml/50mg": 50,
+        "5ml/100mg": 100,
+        "7.5ml/150mg": 150,
+        "10ml/200mg": 200,
+      },
+    };
+    const defaults = {
+      paracetamol: "120mg/5ml liquid",
+      ibuprofen: "5ml/100mg",
+    };
+    const configured = this.config[`${medicine}_dose_size`];
+    const label = Object.prototype.hasOwnProperty.call(options[medicine], configured) ? configured : defaults[medicine];
+    return { label, mg: options[medicine][label] };
+  }
   _barColor(percent) {
     if (percent >= 90) return "var(--error-color, #d32f2f)";
     if (percent >= 60) return "var(--warning-color, #fbc02d)";

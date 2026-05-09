@@ -100,6 +100,8 @@ show_time_since_last_dose: true
 show_amount_in_last24h: true
 show_dose_button: true
 show_reset_button: true
+paracetamol_dose_size: 120mg/5ml liquid
+ibuprofen_dose_size: 5ml/100mg
 ```
 
 | Option | Default | Description |
@@ -116,6 +118,8 @@ show_reset_button: true
 | `show_amount_in_last24h` | `true` | Show the rolling 24-hour amount used against the allowed amount in each medication row. |
 | `show_dose_button` | `true` | Show the button to record a dose in each medication row. |
 | `show_reset_button` | `true` | Show the button to reset that medication's rolling 24-hour history in each medication row. |
+| `paracetamol_dose_size` | `120mg/5ml liquid` | Paracetamol dose recorded when the button is pressed. Options: `120mg/5ml liquid`, `250mg/5ml liquid`, `250mg tablet`. |
+| `ibuprofen_dose_size` | `5ml/100mg` | Ibuprofen dose recorded when the button is pressed. Options: `2.5ml/50mg`, `5ml/100mg`, `7.5ml/150mg`, `10ml/200mg`. |
 
 Each medication row includes a 24-hour dose graph showing doses administered
 against the maximum allowed doses for the medicine. Hide a whole medication row
