@@ -64,8 +64,7 @@ lovelace:
 
 Do not use a `/hacsfiles/...` URL for this repository. HACS installs this as an
 integration, not as a frontend/plugin repository, so the `/hacsfiles` path is
-not created. The compatibility URL
-`/child_medication_dosage/frontend/child-dosage-card.js` is also served.
+not created.
 
 Then add a manual card:
 
