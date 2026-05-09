@@ -116,7 +116,7 @@ class ChildDosageCard extends HTMLElement {
     let years = now.getFullYear() - dob.getFullYear();
     const m = now.getMonth() - dob.getMonth();
     if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years--;
-    return `Age: ${years}y • Weight: ${weightKg || "?"} kg`;
+    return `Age: ${years}y | Weight: ${weightKg || "?"} kg`;
   }
 
   _timeSince(value) {

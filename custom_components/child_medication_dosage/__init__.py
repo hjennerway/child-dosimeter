@@ -66,8 +66,8 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
         return
     await hass.http.async_register_static_paths(
         [
-            StaticPathConfig(FRONTEND_URL_PATH, str(FRONTEND_PATH), True),
-            StaticPathConfig(FRONTEND_ALIAS_URL_PATH, str(FRONTEND_PATH), True),
+            StaticPathConfig(FRONTEND_URL_PATH, str(FRONTEND_PATH), False),
+            StaticPathConfig(FRONTEND_ALIAS_URL_PATH, str(FRONTEND_PATH), False),
         ]
     )
     hass.data[FRONTEND_REGISTERED] = True
