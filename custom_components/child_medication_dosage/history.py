@@ -75,13 +75,22 @@ class MedicationHistory:
         await self._async_prune_and_save()
         return event
 
-    async def async_clear(self, child_id: str | None = None) -> None:
-        """Clear all history, optionally for one child."""
+    async def async_clear(
+        self, child_id: str | None = None, medicine: str | None = None
+    ) -> None:
+        """Clear all history, optionally filtered by child and medicine."""
 
-        if child_id is None:
+        if child_id is None and medicine is None:
             self._events = []
         else:
-            self._events = [event for event in self._events if event.child_id != child_id]
+            self._events = [
+                event
+                for event in self._events
+                if not (
+                    (child_id is None or event.child_id == child_id)
+                    and (medicine is None or event.medicine == medicine)
+                )
+            ]
         await self._async_save()
 
     def events_for(
