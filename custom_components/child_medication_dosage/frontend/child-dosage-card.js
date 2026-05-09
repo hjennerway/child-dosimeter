@@ -31,7 +31,7 @@ class ChildDosageCard extends HTMLElement {
         button { border: 0; border-radius: 8px; min-height: 36px; padding: 8px 10px; font: inherit; font-weight: 600; color: #fff; background: var(--primary-color); }
         button.dose { width: 88px; height: 88px; padding: 8px; }
         button.reset { min-height: 32px; padding: 6px 8px; font-size: 12px; background: var(--error-color, #d32f2f); }
-        .bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: var(--divider-color); }
+        .bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: var(--divider-color); cursor: pointer; }
         .fill { position: absolute; inset: 0 auto 0 0; width: var(--fill-width); background: var(--bar-color); }
         .warning { color: var(--error-color, #d32f2f); font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; }
         .label { font-weight: 700; color: var(--primary-text-color); }
@@ -76,6 +76,7 @@ class ChildDosageCard extends HTMLElement {
 
     this._content.querySelectorAll("button[data-dose]").forEach((b) => b.addEventListener("click", () => this._giveDose(b.dataset.dose, b)));
     this._content.querySelectorAll("button[data-reset]").forEach((b) => b.addEventListener("click", () => this._resetDose(b.dataset.reset, b)));
+    this._content.querySelectorAll(".bar[data-log]").forEach((bar) => bar.addEventListener("click", () => this._showDoseLog(bar.dataset.log)));
   }
 
   _medicineTemplate(medicine, item) {
@@ -92,7 +93,7 @@ class ChildDosageCard extends HTMLElement {
       <div class="row">
         <div class="details">
           <div class="top"><b>${label}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
-          <div class="bar"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
+          <div class="bar" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
           ${percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
           <div class="meta">
             ${this.config.show_amount_in_last24h ? `<span><span class="label">Amount 24h:</span> ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
@@ -122,6 +123,25 @@ class ChildDosageCard extends HTMLElement {
     button.disabled = true;
     try { await this._hass.callService("child_medication_dosage", "clear_history", { child_id: childId, medicine }); }
     finally { button.disabled = false; }
+  }
+
+  _showDoseLog(serializedLog) {
+    const log = this._parseDoseLog(serializedLog);
+    if (!log.length) {
+      window.alert("No doses recorded in the last 48 hours.");
+      return;
+    }
+    const lines = log.map((event) => `• ${this._formatDateTime(event.given_at)} — ${this._formatMg(event.dose_mg)}`);
+    window.alert(`Doses in last 48 hours:\n\n${lines.join("\n")}`);
+  }
+
+  _parseDoseLog(serializedLog) {
+    try {
+      const log = JSON.parse(serializedLog || "[]");
+      return Array.isArray(log) ? log : [];
+    } catch (_error) {
+      return [];
+    }
   }
 
   _childAgeWeight(dobIso, weightKg) {
