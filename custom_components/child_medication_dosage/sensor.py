@@ -101,6 +101,7 @@ class MedicationDoseSensor(SensorEntity):
         return {
             ATTR_CHILD_ID: self._child[ATTR_CHILD_ID],
             ATTR_CHILD_NAME: self._child[CONF_CHILD_NAME],
+            "date_of_birth": date_of_birth.isoformat(),
             ATTR_MEDICINE: self._medicine,
             ATTR_TOTAL_24H_MG: total,
             ATTR_MAX_24H_MG: rule.max_24h_mg,
