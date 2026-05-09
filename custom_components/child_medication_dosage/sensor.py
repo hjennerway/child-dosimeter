@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -95,6 +96,12 @@ class MedicationDoseSensor(SensorEntity):
             self._medicine, date_of_birth, self._child[CONF_WEIGHT_KG], now
         )
         events = self._history.events_for(self._child[ATTR_CHILD_ID], self._medicine, now)
+        events_48h = self._history.events_for(
+            self._child[ATTR_CHILD_ID],
+            self._medicine,
+            now,
+            window=timedelta(hours=48),
+        )
         last = self._history.last_event(self._child[ATTR_CHILD_ID], self._medicine)
         total = round(sum(event.dose_mg for event in events), 1)
         percent = 0 if rule.max_24h_mg <= 0 else min(100, round(total / rule.max_24h_mg * 100))
@@ -110,6 +117,10 @@ class MedicationDoseSensor(SensorEntity):
             ATTR_MAX_DOSES_24H: rule.max_doses_24h,
             ATTR_PERCENT_USED: percent,
             ATTR_LAST_DOSE_AT: last.given_at.isoformat() if last else None,
+            "dose_log_48h": [
+                {"dose_mg": event.dose_mg, "given_at": event.given_at.isoformat()}
+                for event in sorted(events_48h, key=lambda event: event.given_at, reverse=True)
+            ],
             "rule_note": rule.note,
             "weight_kg": self._child[CONF_WEIGHT_KG],
         }
