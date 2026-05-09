@@ -60,7 +60,7 @@ the integration is loaded. Register the dashboard resource:
 ```yaml
 lovelace:
   resources:
-    - url: /child_medication_dosage/child-dosage-card.js?v=2
+    - url: /child_medication_dosage/child-dosage-card.js?v=3
       type: module
 ```
 
