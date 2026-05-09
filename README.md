@@ -171,3 +171,4 @@ service: child_medication_dosage.clear_history
 - `custom_components/child_medication_dosage`: Home Assistant custom integration.
 - `custom_components/child_medication_dosage/frontend/child-dosage-card.js`:
   bundled Lovelace custom card served by the integration.
+- `icon.svg`: original baby-themed project icon, released as CC0-1.0.
