@@ -132,7 +132,7 @@ class ChildDosageCard extends HTMLElement {
   _timeSince(value) {
     if (!value) return "n/a";
     const ms = Date.now() - new Date(value).getTime();
-    if (Number.isNaN(ms) || ms < 0) return "n/a";
+    if (Number.isNaN(ms) || ms < 0) return "Just now!";
     const mins = Math.floor(ms / 60000);
     if (mins < 60) return `${mins} ${mins === 1 ? "minute" : "minutes"}`;
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
