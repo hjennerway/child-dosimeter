@@ -6,342 +6,130 @@ class ChildDosageCard extends HTMLElement {
 
     this.config = {
       title: "Medication dosage",
+      show_paracetamol: true,
+      show_ibuprofen: true,
+      show_last_dose_time: true,
+      show_time_since_last_dose: true,
+      show_amount_in_last24h: true,
+      show_dose_button: true,
+      show_reset_button: true,
+      show_child_name: true,
+      show_child_age_weight: true,
       ...config,
     };
     this._root = this.attachShadow({ mode: "open" });
     this._root.innerHTML = `
       <style>
-        :host {
-          display: block;
-        }
-
-        ha-card {
-          overflow: hidden;
-        }
-
-        .content {
-          padding: 16px;
-          display: grid;
-          gap: 16px;
-        }
-
-        .header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .title {
-          font-size: 20px;
-          font-weight: 600;
-          line-height: 1.2;
-          color: var(--primary-text-color);
-        }
-
-        .child {
-          margin-top: 4px;
-          color: var(--secondary-text-color);
-          font-size: 14px;
-        }
-
-        .actions {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-        }
-
-        button {
-          border: 0;
-          border-radius: 8px;
-          min-height: 44px;
-          padding: 10px 12px;
-          font: inherit;
-          font-weight: 600;
-          color: var(--text-primary-color, #fff);
-          background: var(--primary-color);
-          cursor: pointer;
-        }
-
-        button.ibuprofen {
-          background: var(--accent-color);
-        }
-
-        button:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
-        .medicine-list {
-          display: grid;
-          gap: 14px;
-        }
-
-        .medicine {
-          display: grid;
-          gap: 8px;
-        }
-
-        .medicine-top,
-        .medicine-meta {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .name {
-          font-weight: 600;
-          color: var(--primary-text-color);
-          text-transform: capitalize;
-        }
-
-        .dose {
-          color: var(--secondary-text-color);
-          font-size: 13px;
-          white-space: nowrap;
-        }
-
-        .bar {
-          position: relative;
-          height: 14px;
-          border-radius: 7px;
-          overflow: hidden;
-          background: var(--divider-color);
-        }
-
-        .fill {
-          position: absolute;
-          inset: 0 auto 0 0;
-          width: var(--fill-width);
-          border-radius: inherit;
-          background: var(--ok-color, #2e7d32);
-        }
-
-        .fill.warn {
-          background: var(--warning-color, #f9a825);
-        }
-
-        .fill.danger {
-          background: var(--error-color, #d32f2f);
-        }
-
-        .medicine-meta {
-          color: var(--secondary-text-color);
-          font-size: 12px;
-        }
-
-        .last {
-          overflow-wrap: anywhere;
-          text-align: right;
-        }
-
-        .missing {
-          padding: 16px;
-          color: var(--error-color);
-        }
-
-        @media (max-width: 420px) {
-          .actions,
-          .medicine-top,
-          .medicine-meta {
-            grid-template-columns: 1fr;
-          }
-
-          .actions {
-            display: grid;
-          }
-
-          .medicine-top,
-          .medicine-meta {
-            display: grid;
-            gap: 4px;
-          }
-
-          .last {
-            text-align: left;
-          }
-        }
+        .content { padding: 16px; display: grid; gap: 14px; }
+        .title { font-size: 20px; font-weight: 600; }
+        .child { color: var(--secondary-text-color); font-size: 14px; }
+        .row { display: grid; gap: 8px; border-top: 1px solid var(--divider-color); padding-top: 10px; }
+        .top { display: flex; justify-content: space-between; gap: 10px; }
+        .meta { color: var(--secondary-text-color); font-size: 12px; display: grid; gap: 4px; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        button { border: 0; border-radius: 8px; min-height: 36px; padding: 8px 10px; font: inherit; font-weight: 600; color: #fff; background: var(--primary-color); }
+        button.reset { background: var(--error-color, #d32f2f); }
+        .bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: var(--divider-color); }
+        .fill { position: absolute; inset: 0 auto 0 0; width: var(--fill-width); background: var(--ok-color, #2e7d32); }
       </style>
-      <ha-card>
-        <div class="content"></div>
-      </ha-card>
-    `;
-    this._content = this._root.querySelector(".content");
+      <ha-card><div class="content"></div></ha-card>`;
+    this._content = this._root.querySelector('.content');
   }
 
-  set hass(hass) {
-    this._hass = hass;
-    if (!this._content) {
-      return;
-    }
-    this._render();
-  }
-
-  getCardSize() {
-    return 4;
-  }
+  set hass(hass) { this._hass = hass; if (this._content) this._render(); }
+  getCardSize() { return 4; }
 
   _findStates() {
-    const childId = this.config.child_id;
-    const childName = this.config.child_name;
     const states = Object.entries(this._hass.states)
       .map(([entityId, state]) => ({ entityId, state }))
-      .filter(
-        ({ state }) =>
-          (state.attributes.child_id === childId ||
-            state.attributes.child_name === childName) &&
-          ["paracetamol", "ibuprofen"].includes(state.attributes.medicine)
+      .filter(({ state }) =>
+        (state.attributes.child_id === this.config.child_id || state.attributes.child_name === this.config.child_name) &&
+        ["paracetamol", "ibuprofen"].includes(state.attributes.medicine)
       );
-
-    const byMedicine = Object.fromEntries(
-      states.map((item) => [item.state.attributes.medicine, item])
-    );
-    return {
-      paracetamol: byMedicine.paracetamol,
-      ibuprofen: byMedicine.ibuprofen,
-    };
+    const byMedicine = Object.fromEntries(states.map((item) => [item.state.attributes.medicine, item]));
+    return { paracetamol: byMedicine.paracetamol, ibuprofen: byMedicine.ibuprofen };
   }
 
   _render() {
     const states = this._findStates();
-    const childName =
-      states.paracetamol?.state.attributes.child_name ||
-      states.ibuprofen?.state.attributes.child_name ||
-      this.config.child_id;
+    const attrs = states.paracetamol?.state.attributes || states.ibuprofen?.state.attributes || {};
+    const childName = attrs.child_name || this.config.child_id || "Child";
+    const ageWeight = this._childAgeWeight(attrs.date_of_birth, attrs.weight_kg);
+    const meds = [];
+    if (this.config.show_paracetamol) meds.push(["paracetamol", states.paracetamol]);
+    if (this.config.show_ibuprofen) meds.push(["ibuprofen", states.ibuprofen]);
 
     this._content.innerHTML = `
-      <div class="header">
-        <div>
-          <div class="title">${this._escape(this.config.title)}</div>
-          <div class="child">${this._escape(childName)}</div>
-        </div>
-      </div>
-      <div class="actions">
-        <button class="paracetamol" data-medicine="paracetamol">Given Paracetamol</button>
-        <button class="ibuprofen" data-medicine="ibuprofen">Given Ibuprofen</button>
-      </div>
-      <div class="medicine-list">
-        ${this._medicineTemplate("paracetamol", states.paracetamol)}
-        ${this._medicineTemplate("ibuprofen", states.ibuprofen)}
-      </div>
+      <div class="title">${this._escape(this.config.title)}</div>
+      ${this.config.show_child_name ? `<div class="child">${this._escape(childName)}</div>` : ""}
+      ${this.config.show_child_age_weight ? `<div class="child">${this._escape(ageWeight)}</div>` : ""}
+      ${meds.map(([name, item]) => this._medicineTemplate(name, item)).join("")}
     `;
 
-    this._content.querySelectorAll("button[data-medicine]").forEach((button) => {
-      button.addEventListener("click", () =>
-        this._giveDose(button.dataset.medicine, button)
-      );
-    });
+    this._content.querySelectorAll("button[data-dose]").forEach((b) => b.addEventListener("click", () => this._giveDose(b.dataset.dose, b)));
+    this._content.querySelectorAll("button[data-reset]").forEach((b) => b.addEventListener("click", () => this._resetDose(b.dataset.reset, b)));
   }
 
   _medicineTemplate(medicine, item) {
-    if (!item) {
-      return `
-        <div class="medicine">
-          <div class="medicine-top">
-            <span class="name">${medicine}</span>
-            <span class="dose">sensor not found</span>
-          </div>
-          <div class="bar"><div class="fill danger" style="--fill-width: 0%"></div></div>
-          <div class="medicine-meta">
-            <span>Add or reload the integration entity</span>
-            <span class="last"></span>
-          </div>
-        </div>
-      `;
-    }
-
-    const attr = item.state.attributes;
-    const total = Number(attr.total_24h_mg || 0);
-    const max = Number(attr.max_24h_mg || 0);
+    if (!item) return `<div class="row"><div class="top"><b>${medicine}</b><span>sensor not found</span></div></div>`;
+    const a = item.state.attributes;
+    const total = Number(a.total_24h_mg || 0);
+    const max = Number(a.max_24h_mg || 0);
     const percent = max > 0 ? Math.min(100, Math.round((total / max) * 100)) : 0;
-    const fillClass = percent >= 100 ? "danger" : percent >= 75 ? "warn" : "";
-    const doseCount = `${attr.doses_24h || 0}/${attr.max_doses_24h || 0} doses`;
-    const doseText = `${this._formatMg(total)} / ${this._formatMg(max)} in 24h`;
-    const last = attr.last_dose_at
-      ? this._formatDateTime(attr.last_dose_at)
-      : "No doses recorded";
-    const recommended = attr.recommended_dose_mg
-      ? `Next dose ${this._formatMg(attr.recommended_dose_mg)}`
-      : "Dose not available";
-
+    const last = a.last_dose_at ? this._formatDateTime(a.last_dose_at) : "No doses recorded";
     return `
-      <div class="medicine">
-        <div class="medicine-top">
-          <span class="name">${medicine}</span>
-          <span class="dose">${doseText}</span>
+      <div class="row">
+        <div class="top"><b>${medicine}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
+        <div class="bar"><div class="fill" style="--fill-width:${percent}%"></div></div>
+        <div class="meta">
+          ${this.config.show_amount_in_last24h ? `<span>Amount 24h: ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
+          ${this.config.show_last_dose_time ? `<span>Last dose: ${last}</span>` : ""}
+          ${this.config.show_time_since_last_dose ? `<span>Since last: ${this._timeSince(a.last_dose_at)}</span>` : ""}
         </div>
-        <div class="bar" title="${percent}% used">
-          <div class="fill ${fillClass}" style="--fill-width: ${percent}%"></div>
+        <div class="actions">
+          ${this.config.show_dose_button ? `<button data-dose="${medicine}">Record ${medicine}</button>` : ""}
+          ${this.config.show_reset_button ? `<button class="reset" data-reset="${medicine}">Reset ${medicine} 24h</button>` : ""}
         </div>
-        <div class="medicine-meta">
-          <span>${doseCount} &bull; ${recommended}</span>
-          <span class="last">Last: ${last}</span>
-        </div>
-      </div>
-    `;
+      </div>`;
   }
 
   async _giveDose(medicine, button) {
-    const states = this._findStates();
-    const childId =
-      this.config.child_id ||
-      states.paracetamol?.state.attributes.child_id ||
-      states.ibuprofen?.state.attributes.child_id;
-    if (!childId) {
-      return;
-    }
-
+    const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
+    if (!childId) return;
     button.disabled = true;
-    try {
-      await this._hass.callService("child_medication_dosage", "give_dose", {
-        child_id: childId,
-        medicine,
-      });
-    } finally {
-      button.disabled = false;
-    }
+    try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine }); }
+    finally { button.disabled = false; }
   }
 
-  _formatMg(value) {
-    if (!Number.isFinite(Number(value))) {
-      return "0 mg";
-    }
-    return `${Number(value).toLocaleString(undefined, {
-      maximumFractionDigits: 1,
-    })} mg`;
+  async _resetDose(medicine, button) {
+    const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
+    if (!childId) return;
+    button.disabled = true;
+    try { await this._hass.callService("child_medication_dosage", "clear_history", { child_id: childId, medicine }); }
+    finally { button.disabled = false; }
   }
 
-  _formatDateTime(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-    return date.toLocaleString(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+  _childAgeWeight(dobIso, weightKg) {
+    if (!dobIso) return weightKg ? `Weight: ${weightKg} kg` : "";
+    const dob = new Date(dobIso);
+    const now = new Date();
+    let years = now.getFullYear() - dob.getFullYear();
+    const m = now.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) years--;
+    return `Age: ${years}y • Weight: ${weightKg || "?"} kg`;
   }
 
-  _escape(value) {
-    return String(value).replace(/[&<>"']/g, (char) => {
-      const replacements = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      };
-      return replacements[char];
-    });
+  _timeSince(value) {
+    if (!value) return "n/a";
+    const ms = Date.now() - new Date(value).getTime();
+    if (Number.isNaN(ms) || ms < 0) return "n/a";
+    const mins = Math.floor(ms / 60000);
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
+  _formatMg(value) { return `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })} mg`; }
+  _formatDateTime(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString(); }
+  _escape(value) { return String(value).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 }
-
 customElements.define("child-dosage-card", ChildDosageCard);
-
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "child-dosage-card",
-  name: "Child Dosage Card",
-  description: "Track paracetamol and ibuprofen doses for a configured child.",
-});
+window.customCards.push({ type: "child-dosage-card", name: "Child Dosage Card", description: "Track child medication doses." });

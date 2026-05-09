@@ -24,3 +24,10 @@ clear_history:
       required: false
       selector:
         text:
+    medicine:
+      required: false
+      selector:
+        select:
+          options:
+            - paracetamol
+            - ibuprofen

@@ -78,6 +78,45 @@ child_name: Child Name
 You can also use the stable `child_id` instead of `child_name`. Find the
 `child_id` in the attributes of one of the created medication sensors.
 
+### Card Options
+
+All display options are optional and default to `true`.
+
+```yaml
+type: custom:child-dosage-card
+title: Medication
+child_name: Child Name
+show_child_name: true
+show_child_age_weight: true
+show_paracetamol: true
+show_ibuprofen: true
+show_last_dose_time: true
+show_time_since_last_dose: true
+show_amount_in_last24h: true
+show_dose_button: true
+show_reset_button: true
+```
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `title` | `Medication dosage` | Card title. |
+| `child_name` | required if `child_id` is not set | Child name to match against the medication sensor attributes. |
+| `child_id` | required if `child_name` is not set | Stable child ID to match against the medication sensor attributes. |
+| `show_child_name` | `true` | Show the child's name in the card header. |
+| `show_child_age_weight` | `true` | Show the child's age and weight in the card header. |
+| `show_paracetamol` | `true` | Show the paracetamol medication row. |
+| `show_ibuprofen` | `true` | Show the ibuprofen medication row. |
+| `show_last_dose_time` | `true` | Show the last recorded dose time in each medication row. |
+| `show_time_since_last_dose` | `true` | Show the time since the last recorded dose in each medication row. |
+| `show_amount_in_last24h` | `true` | Show the rolling 24-hour amount used against the allowed amount in each medication row. |
+| `show_dose_button` | `true` | Show the button to record a dose in each medication row. |
+| `show_reset_button` | `true` | Show the button to reset that medication's rolling 24-hour history in each medication row. |
+
+Each medication row includes a 24-hour dose graph showing doses administered
+against the maximum allowed doses for the medicine. Hide a whole medication row
+with `show_paracetamol` or `show_ibuprofen`; hide individual row elements with
+the other `show_*` options.
+
 ## Services
 
 Record the recommended dose for the selected medicine:
@@ -105,6 +144,15 @@ Clear history for one child:
 service: child_medication_dosage.clear_history
 data:
   child_id: replace_with_child_id
+```
+
+Clear history for one child and medicine:
+
+```yaml
+service: child_medication_dosage.clear_history
+data:
+  child_id: replace_with_child_id
+  medicine: paracetamol
 ```
 
 Clear all history:

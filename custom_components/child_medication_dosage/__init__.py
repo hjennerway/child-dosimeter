@@ -151,10 +151,11 @@ def _async_register_services(hass: HomeAssistant) -> None:
         """Clear medication history."""
 
         child_id = call.data.get(ATTR_CHILD_ID)
+        medicine = call.data.get(ATTR_MEDICINE)
         entries = hass.data.get(DOMAIN, {}).values()
         for entry_data in entries:
-            await entry_data["history"].async_clear(child_id)
-        async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, None)
+            await entry_data["history"].async_clear(child_id, medicine)
+        async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, medicine)
 
     hass.services.async_register(
         DOMAIN,
@@ -172,5 +173,10 @@ def _async_register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_CLEAR_HISTORY,
         async_clear_history,
-        schema=vol.Schema({vol.Optional(ATTR_CHILD_ID): cv.string}),
+        schema=vol.Schema(
+            {
+                vol.Optional(ATTR_CHILD_ID): cv.string,
+                vol.Optional(ATTR_MEDICINE): vol.In(MEDICINES),
+            }
+        ),
     )
