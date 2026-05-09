@@ -17,8 +17,10 @@ conditions, or medicines with overlapping ingredients.
   - ibuprofen rolling 24-hour total
 - Provides a `child_medication_dosage.give_dose` service.
 - Provides a dashboard card with:
-  - `Given Paracetamol` and `Given Ibuprofen` buttons
-  - last administration time for each medicine
+  - child name, age, and weight
+  - configurable paracetamol and ibuprofen rows
+  - last dose time and time since last dose for each medicine
+  - per-medicine record and reset buttons
   - administered/maximum 24-hour dose bars
 
 The dose rules are based on the supplied photo:
@@ -58,14 +60,17 @@ the integration is loaded. Register the dashboard resource:
 ```yaml
 lovelace:
   resources:
-    - url: /child_medication_dosage/child-dosage-card.js
+    - url: /child_medication_dosage/child-dosage-card.js?v=3
       type: module
 ```
 
 Do not use a `/hacsfiles/...` URL for this repository. HACS installs this as an
 integration, not as a frontend/plugin repository, so the `/hacsfiles` path is
-not created. The compatibility URL
-`/child_medication_dosage/frontend/child-dosage-card.js` is also served.
+not created. If you previously used `/local/child-dosage-card.js`, remove that
+resource and use the integration-served URL above.
+
+Home Assistant and browsers can cache custom card modules. After updating the
+card, increment the `v=` value in the resource URL and refresh the dashboard.
 
 Then add a manual card:
 
