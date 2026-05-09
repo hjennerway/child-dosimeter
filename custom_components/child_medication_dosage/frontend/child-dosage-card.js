@@ -32,7 +32,9 @@ class ChildDosageCard extends HTMLElement {
         button.dose { width: 88px; height: 88px; padding: 8px; }
         button.reset { min-height: 32px; padding: 6px 8px; font-size: 12px; background: var(--error-color, #d32f2f); }
         .bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: var(--divider-color); }
-        .fill { position: absolute; inset: 0 auto 0 0; width: var(--fill-width); background: var(--ok-color, #2e7d32); }
+        .fill { position: absolute; inset: 0 auto 0 0; width: var(--fill-width); background: var(--bar-color); }
+        .warning { color: var(--error-color, #d32f2f); font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; }
+        .label { font-weight: 700; color: var(--primary-text-color); }
         @media (max-width: 520px) {
           .row { grid-template-columns: 1fr; }
           .actions { grid-template-columns: 88px max-content; justify-content: end; align-items: center; }
@@ -82,17 +84,20 @@ class ChildDosageCard extends HTMLElement {
     const a = item.state.attributes;
     const total = Number(a.total_24h_mg || 0);
     const max = Number(a.max_24h_mg || 0);
-    const percent = max > 0 ? Math.min(100, Math.round((total / max) * 100)) : 0;
+    const percent = max > 0 ? Math.round((total / max) * 100) : 0;
+    const fillWidth = Math.min(100, percent);
+    const barColor = this._barColor(percent);
     const last = a.last_dose_at ? this._formatDateTime(a.last_dose_at) : "No doses recorded";
     return `
       <div class="row">
         <div class="details">
           <div class="top"><b>${label}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
-          <div class="bar"><div class="fill" style="--fill-width:${percent}%"></div></div>
+          <div class="bar"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
+          ${percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
           <div class="meta">
-            ${this.config.show_amount_in_last24h ? `<span>Amount 24h: ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
-            ${this.config.show_last_dose_time ? `<span>Last dose: ${last}</span>` : ""}
-            ${this.config.show_time_since_last_dose ? `<span>Since last: ${this._timeSince(a.last_dose_at)}</span>` : ""}
+            ${this.config.show_amount_in_last24h ? `<span><span class="label">Amount 24h:</span> ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
+            ${this.config.show_last_dose_time ? `<span><span class="label">Last dose:</span> ${last}</span>` : ""}
+            ${this.config.show_time_since_last_dose ? `<span><span class="label">Since last:</span> ${this._timeSince(a.last_dose_at)}</span>` : ""}
           </div>
         </div>
         <div class="actions">
@@ -138,6 +143,11 @@ class ChildDosageCard extends HTMLElement {
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
   _titleCase(value) { return String(value).charAt(0).toUpperCase() + String(value).slice(1); }
+  _barColor(percent) {
+    if (percent >= 90) return "var(--error-color, #d32f2f)";
+    if (percent >= 60) return "var(--warning-color, #fbc02d)";
+    return "var(--ok-color, #2e7d32)";
+  }
   _formatMg(value) { return `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })} mg`; }
   _formatDateTime(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString(); }
   _escape(value) { return String(value).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
