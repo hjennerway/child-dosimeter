@@ -4,36 +4,58 @@
     "step": {
       "user": {
         "title": "Add child",
-        "description": "Add a child to monitor medication doses. Custom medications are optional; enter one per line as: Name, max doses in 24h, max amount in 24h mg, dose size mg.",
+        "description": "Add a child to monitor medication doses.",
         "data": {
           "child_name": "Name",
           "date_of_birth": "Date of birth",
           "weight_kg": "Weight (kg)",
-          "custom_medications": "Custom medications"
+          "configure_custom_medications": "Configure custom medications"
+        }
+      },
+      "custom_medication": {
+        "title": "Add custom medication",
+        "description": "Add one custom medication. Use max amount for the total allowed in 24 hours.",
+        "data": {
+          "name": "Medicine name",
+          "max_doses_24h": "Max doses in 24h",
+          "max_24h_mg": "Max amount in 24h (mg)",
+          "dose_mg": "Dose size (mg)",
+          "add_another_custom_medication": "Add another custom medication"
         }
       }
     },
     "error": {
       "required": "This field is required.",
-      "invalid_custom_medications": "Enter custom medications as one per line: Name, max doses in 24h, max amount in 24h mg, dose size mg."
+      "invalid_custom_medication": "Enter a unique custom medication name and positive dose values. Built-in medicine names cannot be used."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Add another child",
-        "description": "Add another child to this medication tracker. Custom medications are optional; enter one per line as: Name, max doses in 24h, max amount in 24h mg, dose size mg.",
+        "description": "Add another child to this medication tracker.",
         "data": {
           "child_name": "Name",
           "date_of_birth": "Date of birth",
           "weight_kg": "Weight (kg)",
-          "custom_medications": "Custom medications"
+          "configure_custom_medications": "Configure custom medications"
+        }
+      },
+      "custom_medication": {
+        "title": "Add custom medication",
+        "description": "Add one custom medication. Use max amount for the total allowed in 24 hours.",
+        "data": {
+          "name": "Medicine name",
+          "max_doses_24h": "Max doses in 24h",
+          "max_24h_mg": "Max amount in 24h (mg)",
+          "dose_mg": "Dose size (mg)",
+          "add_another_custom_medication": "Add another custom medication"
         }
       }
     },
     "error": {
       "required": "This field is required.",
-      "invalid_custom_medications": "Enter custom medications as one per line: Name, max doses in 24h, max amount in 24h mg, dose size mg."
+      "invalid_custom_medication": "Enter a unique custom medication name and positive dose values. Built-in medicine names cannot be used."
     }
   }
 }

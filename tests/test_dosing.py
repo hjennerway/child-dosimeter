@@ -66,6 +66,40 @@ class DosingTests(unittest.TestCase):
         self.assertEqual(rule.max_doses_24h, 3)
         self.assertEqual(rule.note, "custom medication")
 
+    def test_paracetamol_under_three_months_has_consult_warning(self) -> None:
+        """Paracetamol is blocked with a consult warning under 3 months."""
+
+        rule = recommended_rule(
+            "paracetamol",
+            date(2026, 3, 1),
+            5,
+            datetime(2026, 5, 10, tzinfo=UTC),
+        )
+
+        self.assertEqual(rule.dose_mg, 0)
+        self.assertEqual(rule.max_24h_mg, 0)
+        self.assertEqual(
+            rule.consult_warning,
+            "Consult a doctor if child is less than 3 months old",
+        )
+
+    def test_ibuprofen_under_five_kg_has_consult_warning(self) -> None:
+        """Ibuprofen is blocked with a consult warning under 5kg."""
+
+        rule = recommended_rule(
+            "ibuprofen",
+            date(2025, 1, 1),
+            4.9,
+            datetime(2026, 5, 10, tzinfo=UTC),
+        )
+
+        self.assertEqual(rule.dose_mg, 0)
+        self.assertEqual(rule.max_24h_mg, 0)
+        self.assertEqual(
+            rule.consult_warning,
+            "Consult a doctor if child is less than 5kg",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
