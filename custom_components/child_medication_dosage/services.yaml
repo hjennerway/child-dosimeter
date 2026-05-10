@@ -31,3 +31,27 @@ clear_history:
           options:
             - paracetamol
             - ibuprofen
+remove_dose:
+  fields:
+    child_id:
+      required: true
+      selector:
+        text:
+    medicine:
+      required: true
+      selector:
+        select:
+          options:
+            - paracetamol
+            - ibuprofen
+    given_at:
+      required: true
+      selector:
+        text:
+    dose_mg:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 5000
+          unit_of_measurement: mg

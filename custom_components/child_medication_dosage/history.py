@@ -97,6 +97,25 @@ class MedicationHistory:
         ]
         await self._async_save()
 
+    async def async_remove_one(
+        self, child_id: str, medicine: str, given_at: datetime, dose_mg: float
+    ) -> bool:
+        """Remove one matching dose event."""
+
+        if given_at.tzinfo is None:
+            given_at = given_at.replace(tzinfo=UTC)
+        for index, event in enumerate(self._events):
+            if (
+                event.child_id == child_id
+                and event.medicine == medicine
+                and event.given_at == given_at
+                and event.dose_mg == dose_mg
+            ):
+                self._events.pop(index)
+                await self._async_save()
+                return True
+        return False
+
     def events_for(
         self,
         child_id: str,

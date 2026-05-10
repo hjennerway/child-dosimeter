@@ -21,6 +21,7 @@ conditions, or medicines with overlapping ingredients.
   - configurable paracetamol and ibuprofen rows
   - last dose time and time since last dose for each medicine
   - per-medicine record and reset buttons
+  - removal of individual recorded doses from the history popup
   - administered/maximum 24-hour dose bars
 
 The dose rules are based on the supplied photo:
@@ -168,6 +169,17 @@ Clear all history:
 
 ```yaml
 service: child_medication_dosage.clear_history
+```
+
+Remove one recorded dose:
+
+```yaml
+service: child_medication_dosage.remove_dose
+data:
+  child_id: replace_with_child_id
+  medicine: paracetamol
+  given_at: "2026-05-10T12:00:00+00:00"
+  dose_mg: 120
 ```
 
 ## Files

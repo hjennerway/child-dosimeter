@@ -125,6 +125,43 @@ class MedicationHistoryTests(unittest.IsolatedAsyncioTestCase):
             },
         )
 
+    async def test_async_remove_one_only_removes_exact_matching_dose(self) -> None:
+        """Removing one dose leaves unrelated and non-matching events intact."""
+
+        removed = await self.history.async_remove_one(
+            "child-1", "paracetamol", self.now - timedelta(hours=2), 120
+        )
+
+        self.assertTrue(removed)
+        remaining = [
+            (event.child_id, event.medicine, event.dose_mg, event.given_at)
+            for event in self.history._events
+        ]
+        self.assertNotIn(
+            ("child-1", "paracetamol", 120, self.now - timedelta(hours=2)),
+            remaining,
+        )
+        self.assertIn(
+            ("child-1", "ibuprofen", 100, self.now - timedelta(hours=1)),
+            remaining,
+        )
+        self.assertIn(
+            ("child-2", "paracetamol", 120, self.now - timedelta(hours=1)),
+            remaining,
+        )
+
+    async def test_async_remove_one_returns_false_when_no_dose_matches(self) -> None:
+        """Missing removal requests do not rewrite history."""
+
+        original = list(self.history._events)
+
+        removed = await self.history.async_remove_one(
+            "child-1", "paracetamol", self.now - timedelta(hours=2), 999
+        )
+
+        self.assertFalse(removed)
+        self.assertEqual(self.history._events, original)
+
 
 if __name__ == "__main__":
     unittest.main()

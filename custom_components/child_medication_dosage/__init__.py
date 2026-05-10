@@ -18,6 +18,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from .const import (
     ATTR_CHILD_ID,
     ATTR_DOSE_MG,
+    ATTR_GIVEN_AT,
     ATTR_MEDICINE,
     CONF_CHILDREN,
     DOMAIN,
@@ -25,6 +26,7 @@ from .const import (
     PLATFORMS,
     SERVICE_CLEAR_HISTORY,
     SERVICE_GIVE_DOSE,
+    SERVICE_REMOVE_DOSE,
 )
 from .dosing import recommended_rule
 from .history import MedicationHistory
@@ -157,6 +159,20 @@ def _async_register_services(hass: HomeAssistant) -> None:
             await entry_data["history"].async_clear(child_id, medicine)
         async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, medicine)
 
+    async def async_remove_dose(call: ServiceCall) -> None:
+        """Remove one recorded medication dose."""
+
+        child_id = call.data[ATTR_CHILD_ID]
+        medicine = call.data[ATTR_MEDICINE]
+        entry, _child = find_child(hass, child_id)
+        history = history_from_entry(hass, entry.entry_id)
+        given_at = datetime.fromisoformat(call.data[ATTR_GIVEN_AT])
+        removed = await history.async_remove_one(
+            child_id, medicine, given_at, float(call.data[ATTR_DOSE_MG])
+        )
+        if removed:
+            async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, medicine)
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_GIVE_DOSE,
@@ -177,6 +193,19 @@ def _async_register_services(hass: HomeAssistant) -> None:
             {
                 vol.Optional(ATTR_CHILD_ID): cv.string,
                 vol.Optional(ATTR_MEDICINE): vol.In(MEDICINES),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REMOVE_DOSE,
+        async_remove_dose,
+        schema=vol.Schema(
+            {
+                vol.Required(ATTR_CHILD_ID): cv.string,
+                vol.Required(ATTR_MEDICINE): vol.In(MEDICINES),
+                vol.Required(ATTR_GIVEN_AT): cv.string,
+                vol.Required(ATTR_DOSE_MG): vol.Coerce(float),
             }
         ),
     )

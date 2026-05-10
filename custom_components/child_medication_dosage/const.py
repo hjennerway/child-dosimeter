@@ -30,6 +30,7 @@ ATTR_PERCENT_USED = "percent_used"
 
 SERVICE_GIVE_DOSE = "give_dose"
 SERVICE_CLEAR_HISTORY = "clear_history"
+SERVICE_REMOVE_DOSE = "remove_dose"
 
 STORAGE_KEY = f"{DOMAIN}.history"
 STORAGE_VERSION = 1

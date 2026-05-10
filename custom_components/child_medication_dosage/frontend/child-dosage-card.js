@@ -48,12 +48,13 @@ class ChildDosageCard extends HTMLElement {
         .dialog-title b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .dialog-title span { color: var(--secondary-text-color); font-size: 12px; }
         .log { overflow: auto; padding: 8px 16px 16px; }
-        .log-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--divider-color); }
+        .log-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--divider-color); }
         .log-row:last-child { border-bottom: 0; }
         .log-time { min-width: 0; display: grid; gap: 2px; }
         .log-date { color: var(--primary-text-color); font-weight: 600; overflow-wrap: anywhere; }
         .log-since { color: var(--secondary-text-color); font-size: 12px; }
         .log-dose { font-weight: 700; text-align: right; white-space: nowrap; }
+        button.remove-dose { width: 32px; min-height: 32px; padding: 5px; color: #fff; background: #111; border: 1px solid var(--error-color, #d32f2f); }
         .empty { padding: 22px 16px 24px; color: var(--secondary-text-color); text-align: center; }
         @media (max-width: 520px) {
           .row { grid-template-columns: 1fr; }
@@ -157,6 +158,7 @@ class ChildDosageCard extends HTMLElement {
           <span class="log-since">${this._escape(this._relativeTimeLabel(event.given_at))}</span>
         </div>
         <span class="log-dose">${this._escape(this._formatMg(event.dose_mg))}</span>
+        <button class="remove-dose" type="button" title="Remove dose" aria-label="Remove dose" data-medicine="${this._escape(medicine || "")}" data-given-at="${this._escape(event.given_at)}" data-dose-mg="${this._escape(event.dose_mg)}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
       </div>
     `);
     this._root.querySelector(".overlay")?.remove();
@@ -187,9 +189,34 @@ class ChildDosageCard extends HTMLElement {
       if (event.target === overlay) close();
     });
     overlay.querySelector("button").addEventListener("click", close);
+    overlay.querySelectorAll("button.remove-dose").forEach((button) => {
+      button.addEventListener("click", () => this._removeDose(button));
+    });
     this._root.appendChild(overlay);
     this._root.addEventListener("keydown", handleKeydown);
     overlay.querySelector("button").focus();
+  }
+
+  async _removeDose(button) {
+    const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
+    if (!childId) return;
+    if (!window.confirm("Remove this recorded dose?")) return;
+    button.disabled = true;
+    try {
+      await this._hass.callService("child_medication_dosage", "remove_dose", {
+        child_id: childId,
+        medicine: button.dataset.medicine,
+        given_at: button.dataset.givenAt,
+        dose_mg: Number(button.dataset.doseMg),
+      });
+      const log = button.closest(".log");
+      button.closest(".log-row")?.remove();
+      if (log && !log.querySelector(".log-row")) {
+        log.innerHTML = `<div class="empty">No doses recorded in the last 48 hours.</div>`;
+      }
+    } finally {
+      button.disabled = false;
+    }
   }
 
   _parseDoseLog(serializedLog) {
