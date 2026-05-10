@@ -29,7 +29,9 @@ from .const import (
 )
 
 FIELD_ADD_ANOTHER_CUSTOM_MEDICATION = "add_another_custom_medication"
+FIELD_CHILD_ACTION = "child_action"
 FIELD_CONFIGURE_CUSTOM_MEDICATIONS = "configure_custom_medications"
+VALUE_ADD_CHILD = "__add_child__"
 
 
 def _child_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
@@ -59,6 +61,23 @@ def _child_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 FIELD_CONFIGURE_CUSTOM_MEDICATIONS,
                 default=defaults.get(FIELD_CONFIGURE_CUSTOM_MEDICATIONS, False),
             ): selector.BooleanSelector(),
+        }
+    )
+
+
+def _child_action_schema(children: list[dict[str, Any]]) -> vol.Schema:
+    """Return the options form schema for selecting a child to edit."""
+
+    options = [
+        {"value": child[ATTR_CHILD_ID], "label": child[CONF_CHILD_NAME]}
+        for child in children
+    ]
+    options.append({"value": VALUE_ADD_CHILD, "label": "Add another child"})
+    return vol.Schema(
+        {
+            vol.Required(FIELD_CHILD_ACTION): selector.SelectSelector(
+                selector.SelectSelectorConfig(options=options)
+            )
         }
     )
 
@@ -132,6 +151,32 @@ def _child_from_input(user_input: dict[str, Any]) -> dict[str, Any]:
         CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
         CONF_CUSTOM_MEDICATIONS: [],
     }
+
+
+def _child_defaults(child: dict[str, Any] | None) -> dict[str, Any]:
+    """Return child form defaults from stored child data."""
+
+    if not child:
+        return {}
+    return {
+        CONF_CHILD_NAME: child.get(CONF_CHILD_NAME, ""),
+        CONF_DATE_OF_BIRTH: _date_string(child.get(CONF_DATE_OF_BIRTH)),
+        CONF_WEIGHT_KG: child.get(CONF_WEIGHT_KG, 10.0),
+        FIELD_CONFIGURE_CUSTOM_MEDICATIONS: bool(
+            child.get(CONF_CUSTOM_MEDICATIONS, [])
+        ),
+    }
+
+
+def _child_from_input_with_id(
+    user_input: dict[str, Any], child_id: str | None = None
+) -> dict[str, Any]:
+    """Build stored child data from form input, preserving an existing id."""
+
+    child = _child_from_input(user_input)
+    if child_id:
+        child[ATTR_CHILD_ID] = child_id
+    return child
 
 
 def _custom_medication_from_input(
@@ -248,35 +293,74 @@ class ChildMedicationDosageConfigFlow(
 
 
 class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
-    """Allow adding another child by updating the config entry data."""
+    """Allow editing children by updating the config entry data."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
 
         self._config_entry = config_entry
         self._custom_medications: list[dict[str, Any]] = []
+        self._custom_medication_defaults: list[dict[str, Any]] = []
+        self._custom_medication_index = 0
+        self._editing_child_index: int | None = None
         self._pending_child: dict[str, Any] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Show the add-child form."""
+        """Select a child to edit or add a new child."""
+
+        children = list(self._config_entry.data.get(CONF_CHILDREN, []))
+        if not children:
+            self._editing_child_index = None
+            return await self.async_step_child()
+
+        if user_input is not None:
+            selected = user_input[FIELD_CHILD_ACTION]
+            if selected == VALUE_ADD_CHILD:
+                self._editing_child_index = None
+                return await self.async_step_child()
+            for index, child in enumerate(children):
+                if child[ATTR_CHILD_ID] == selected:
+                    self._editing_child_index = index
+                    return await self.async_step_child()
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_child_action_schema(children),
+            errors={},
+        )
+
+    async def async_step_child(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Show the child edit form."""
 
         errors: dict[str, str] = {}
+        existing_child = self._editing_child()
         if user_input is not None:
             name = user_input[CONF_CHILD_NAME].strip()
             if not name:
                 errors[CONF_CHILD_NAME] = "required"
             else:
-                self._pending_child = _child_from_input(user_input)
+                self._pending_child = _child_from_input_with_id(
+                    user_input,
+                    existing_child.get(ATTR_CHILD_ID) if existing_child else None,
+                )
                 self._custom_medications = []
+                self._custom_medication_defaults = list(
+                    existing_child.get(CONF_CUSTOM_MEDICATIONS, [])
+                    if existing_child
+                    else []
+                )
+                self._custom_medication_index = 0
                 if user_input.get(FIELD_CONFIGURE_CUSTOM_MEDICATIONS):
                     return await self.async_step_custom_medication()
                 return self._async_update_entry_with_pending_child()
 
         return self.async_show_form(
-            step_id="init",
-            data_schema=_child_schema(user_input),
+            step_id="child",
+            data_schema=_child_schema(user_input or _child_defaults(existing_child)),
             errors=errors,
         )
 
@@ -296,25 +380,50 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
             except (TypeError, ValueError, vol.Invalid):
                 errors["base"] = "invalid_custom_medication"
             else:
-                if user_input.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION):
+                self._custom_medication_index += 1
+                if self._custom_medication_index < len(
+                    self._custom_medication_defaults
+                ) or user_input.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION):
                     return await self.async_step_custom_medication()
                 return self._async_update_entry_with_pending_child()
 
         return self.async_show_form(
             step_id="custom_medication",
-            data_schema=_custom_medication_schema(user_input),
+            data_schema=_custom_medication_schema(
+                user_input or self._current_custom_medication_defaults()
+            ),
             errors=errors,
         )
 
     def _async_update_entry_with_pending_child(self) -> config_entries.ConfigFlowResult:
-        """Add the pending child to the existing config entry."""
+        """Add or replace the pending child in the existing config entry."""
 
         child = self._pending_child or {}
         child[CONF_CUSTOM_MEDICATIONS] = list(self._custom_medications)
         children = list(self._config_entry.data.get(CONF_CHILDREN, []))
-        children.append(child)
+        if self._editing_child_index is None:
+            children.append(child)
+        else:
+            children[self._editing_child_index] = child
         self.hass.config_entries.async_update_entry(
             self._config_entry,
             data={**self._config_entry.data, CONF_CHILDREN: children},
         )
         return self.async_create_entry(title="", data={})
+
+    def _editing_child(self) -> dict[str, Any] | None:
+        """Return the selected child being edited."""
+
+        if self._editing_child_index is None:
+            return None
+        children = list(self._config_entry.data.get(CONF_CHILDREN, []))
+        if self._editing_child_index >= len(children):
+            return None
+        return children[self._editing_child_index]
+
+    def _current_custom_medication_defaults(self) -> dict[str, Any]:
+        """Return defaults for the custom medication currently being edited."""
+
+        if self._custom_medication_index >= len(self._custom_medication_defaults):
+            return {}
+        return self._custom_medication_defaults[self._custom_medication_index]

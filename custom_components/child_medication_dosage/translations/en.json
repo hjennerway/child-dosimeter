@@ -32,8 +32,15 @@
   "options": {
     "step": {
       "init": {
-        "title": "Add another child",
-        "description": "Add another child to this medication tracker.",
+        "title": "Manage children",
+        "description": "Choose a child to edit, or add another child.",
+        "data": {
+          "child_action": "Child"
+        }
+      },
+      "child": {
+        "title": "Edit child",
+        "description": "Update this child's details.",
         "data": {
           "child_name": "Name",
           "date_of_birth": "Date of birth",
