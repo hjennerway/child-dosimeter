@@ -33,7 +33,9 @@ class ChildDosageCard extends HTMLElement {
         .actions { display: grid; gap: 8px; justify-items: stretch; align-content: center; }
         button { border: 0; border-radius: 8px; min-height: 36px; padding: 8px 10px; font: inherit; font-weight: 600; color: #fff; background: var(--primary-color); }
         button.dose { width: 88px; height: 88px; padding: 8px; }
-        button.reset { min-height: 32px; padding: 6px 8px; font-size: 12px; background: var(--error-color, #d32f2f); }
+        button.dose.ready { background: var(--success-color, #2e7d32); }
+        button.dose.soon { background: var(--warning-color, #f57c00); }
+        button.reset { min-height: 32px; padding: 6px 8px; font-size: 12px; color: #fff; background: #111; border: 1px solid var(--error-color, #d32f2f); }
         button.icon { width: 36px; min-height: 36px; padding: 6px; border-radius: 50%; color: var(--primary-text-color); background: transparent; }
         .bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: var(--divider-color); cursor: pointer; }
         .fill { position: absolute; inset: 0 auto 0 0; width: var(--fill-width); background: var(--bar-color); }
@@ -122,7 +124,7 @@ class ChildDosageCard extends HTMLElement {
           </div>
         </div>
         <div class="actions">
-          ${this.config.show_dose_button ? `<button class="dose" data-dose="${medicine}">Record ${label}</button>` : ""}
+          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${medicine}">Record ${label}</button>` : ""}
           ${this.config.show_reset_button ? `<button class="reset" data-reset="${medicine}">Reset</button>` : ""}
         </div>
       </div>`;
@@ -216,6 +218,12 @@ class ChildDosageCard extends HTMLElement {
     const mins = Math.floor(ms / 60000);
     if (mins < 60) return `${mins} ${mins === 1 ? "minute" : "minutes"}`;
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+  _doseButtonClass(value) {
+    if (!value) return "ready";
+    const ms = Date.now() - new Date(value).getTime();
+    if (Number.isNaN(ms) || ms < 0) return "soon";
+    return ms >= 4 * 60 * 60 * 1000 ? "ready" : "soon";
   }
   _relativeTimeLabel(value) {
     const timeSince = this._timeSince(value);
