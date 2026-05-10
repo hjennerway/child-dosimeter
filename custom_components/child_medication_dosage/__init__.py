@@ -148,7 +148,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, medicine)
 
     async def async_clear_history(call: ServiceCall) -> None:
-        """Clear medication history."""
+        """Clear recent medication history."""
 
         child_id = call.data.get(ATTR_CHILD_ID)
         medicine = call.data.get(ATTR_MEDICINE)
