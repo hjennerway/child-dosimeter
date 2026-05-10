@@ -34,10 +34,25 @@ class ChildDosageCard extends HTMLElement {
         button { border: 0; border-radius: 8px; min-height: 36px; padding: 8px 10px; font: inherit; font-weight: 600; color: #fff; background: var(--primary-color); }
         button.dose { width: 88px; height: 88px; padding: 8px; }
         button.reset { min-height: 32px; padding: 6px 8px; font-size: 12px; background: var(--error-color, #d32f2f); }
+        button.icon { width: 36px; min-height: 36px; padding: 6px; border-radius: 50%; color: var(--primary-text-color); background: transparent; }
         .bar { position: relative; height: 12px; border-radius: 6px; overflow: hidden; background: var(--divider-color); cursor: pointer; }
         .fill { position: absolute; inset: 0 auto 0 0; width: var(--fill-width); background: var(--bar-color); }
         .warning { color: var(--error-color, #d32f2f); font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; }
         .label { font-weight: 700; color: var(--primary-text-color); }
+        .overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, 0.42); }
+        .dialog { width: min(420px, 100%); max-height: min(620px, calc(100vh - 36px)); display: grid; grid-template-rows: auto minmax(0, 1fr); border-radius: 8px; overflow: hidden; color: var(--primary-text-color); background: var(--card-background-color, #fff); box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28); }
+        .dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--divider-color); }
+        .dialog-title { min-width: 0; display: grid; gap: 2px; }
+        .dialog-title b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .dialog-title span { color: var(--secondary-text-color); font-size: 12px; }
+        .log { overflow: auto; padding: 8px 16px 16px; }
+        .log-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--divider-color); }
+        .log-row:last-child { border-bottom: 0; }
+        .log-time { min-width: 0; display: grid; gap: 2px; }
+        .log-date { color: var(--primary-text-color); font-weight: 600; overflow-wrap: anywhere; }
+        .log-since { color: var(--secondary-text-color); font-size: 12px; }
+        .log-dose { font-weight: 700; text-align: right; white-space: nowrap; }
+        .empty { padding: 22px 16px 24px; color: var(--secondary-text-color); text-align: center; }
         @media (max-width: 520px) {
           .row { grid-template-columns: 1fr; }
           .actions { grid-template-columns: 88px max-content; justify-content: end; align-items: center; }
@@ -79,7 +94,7 @@ class ChildDosageCard extends HTMLElement {
 
     this._content.querySelectorAll("button[data-dose]").forEach((b) => b.addEventListener("click", () => this._giveDose(b.dataset.dose, b)));
     this._content.querySelectorAll("button[data-reset]").forEach((b) => b.addEventListener("click", () => this._resetDose(b.dataset.reset, b)));
-    this._content.querySelectorAll(".bar[data-log]").forEach((bar) => bar.addEventListener("click", () => this._showDoseLog(bar.dataset.log)));
+    this._content.querySelectorAll(".bar[data-log]").forEach((bar) => bar.addEventListener("click", () => this._showDoseLog(bar.dataset.log, bar.dataset.medicine)));
   }
 
   _medicineTemplate(medicine, item) {
@@ -98,7 +113,7 @@ class ChildDosageCard extends HTMLElement {
         <div class="details">
           <div class="top"><b>${label}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
           <div class="dose-size">Dose size: ${this._escape(doseSize.label)}</div>
-          <div class="bar" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
+          <div class="bar" data-medicine="${medicine}" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
           ${percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
           <div class="meta">
             ${this.config.show_amount_in_last24h ? `<span><span class="label">Amount 24h:</span> ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
@@ -131,14 +146,48 @@ class ChildDosageCard extends HTMLElement {
     finally { button.disabled = false; }
   }
 
-  _showDoseLog(serializedLog) {
+  _showDoseLog(serializedLog, medicine) {
     const log = this._parseDoseLog(serializedLog);
-    if (!log.length) {
-      window.alert("No doses recorded in the last 48 hours.");
-      return;
-    }
-    const lines = log.map((event) => `- ${this._formatDateTime(event.given_at)} - ${this._formatMg(event.dose_mg)}`);
-    window.alert(`Doses in last 48 hours:\n\n${lines.join("\n")}`);
+    const rows = log.map((event) => `
+      <div class="log-row">
+        <div class="log-time">
+          <span class="log-date">${this._escape(this._formatDateTime(event.given_at))}</span>
+          <span class="log-since">${this._escape(this._relativeTimeLabel(event.given_at))}</span>
+        </div>
+        <span class="log-dose">${this._escape(this._formatMg(event.dose_mg))}</span>
+      </div>
+    `);
+    this._root.querySelector(".overlay")?.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "overlay";
+    overlay.innerHTML = `
+      <section class="dialog" role="dialog" aria-modal="true" aria-label="${this._escape(this._titleCase(medicine || "dose"))} dose history">
+        <header class="dialog-head">
+          <div class="dialog-title">
+            <b>${this._escape(this._titleCase(medicine || "Dose"))} history</b>
+            <span>Last 48 hours</span>
+          </div>
+          <button class="icon" type="button" title="Close" aria-label="Close"><ha-icon icon="mdi:close"></ha-icon></button>
+        </header>
+        <div class="log">
+          ${rows.length ? rows.join("") : `<div class="empty">No doses recorded in the last 48 hours.</div>`}
+        </div>
+      </section>
+    `;
+    const close = () => {
+      this._root.removeEventListener("keydown", handleKeydown);
+      overlay.remove();
+    };
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") close();
+    };
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    overlay.querySelector("button").addEventListener("click", close);
+    this._root.appendChild(overlay);
+    this._root.addEventListener("keydown", handleKeydown);
+    overlay.querySelector("button").focus();
   }
 
   _parseDoseLog(serializedLog) {
@@ -167,6 +216,12 @@ class ChildDosageCard extends HTMLElement {
     const mins = Math.floor(ms / 60000);
     if (mins < 60) return `${mins} ${mins === 1 ? "minute" : "minutes"}`;
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  }
+  _relativeTimeLabel(value) {
+    const timeSince = this._timeSince(value);
+    if (timeSince === "n/a") return "";
+    if (timeSince === "Just now!") return "Just now";
+    return `${timeSince} ago`;
   }
   _titleCase(value) { return String(value).charAt(0).toUpperCase() + String(value).slice(1); }
   _doseSize(medicine) {
