@@ -16,9 +16,16 @@ from .const import (
     ATTR_CHILD_ID,
     CONF_CHILDREN,
     CONF_CHILD_NAME,
+    CONF_CUSTOM_MEDICATIONS,
     CONF_DATE_OF_BIRTH,
+    CONF_DOSE_MG,
+    CONF_MAX_24H_MG,
+    CONF_MAX_DOSES_24H,
+    CONF_MEDICINE_NAME,
     CONF_WEIGHT_KG,
     DOMAIN,
+    MEDICINE_IBUPROFEN,
+    MEDICINE_PARACETAMOL,
 )
 
 
@@ -45,6 +52,14 @@ def _child_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                     step=0.1,
                 )
             ),
+            vol.Optional(
+                CONF_CUSTOM_MEDICATIONS,
+                default=_custom_medications_text(
+                    defaults.get(CONF_CUSTOM_MEDICATIONS, [])
+                ),
+            ): selector.TextSelector(
+                selector.TextSelectorConfig(multiline=True)
+            ),
         }
     )
 
@@ -55,6 +70,58 @@ def _date_string(value: Any) -> str:
     if isinstance(value, date):
         return value.isoformat()
     return date.fromisoformat(str(value)).isoformat()
+
+
+def _custom_medications_text(custom_medications: Any) -> str:
+    """Serialize custom medication config for the options form."""
+
+    if isinstance(custom_medications, str):
+        return custom_medications
+    return "\n".join(
+        (
+            f"{medication[CONF_MEDICINE_NAME]}, "
+            f"{medication[CONF_MAX_DOSES_24H]}, "
+            f"{medication[CONF_MAX_24H_MG]}, "
+            f"{medication[CONF_DOSE_MG]}"
+        )
+        for medication in custom_medications
+    )
+
+
+def _parse_custom_medications(value: Any) -> list[dict[str, Any]]:
+    """Parse one custom medication per line from the config form."""
+
+    medications: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for line in str(value or "").splitlines():
+        if not line.strip():
+            continue
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) != 4:
+            raise vol.Invalid("invalid_custom_medications")
+        name, max_doses, max_24h_mg, dose_mg = parts
+        key = name.casefold()
+        if (
+            not name
+            or key in seen
+            or key in (MEDICINE_PARACETAMOL, MEDICINE_IBUPROFEN)
+        ):
+            raise vol.Invalid("invalid_custom_medications")
+        seen.add(key)
+        max_doses_value = int(max_doses)
+        max_24h_value = float(max_24h_mg)
+        dose_value = float(dose_mg)
+        if max_doses_value < 1 or max_24h_value <= 0 or dose_value <= 0:
+            raise vol.Invalid("invalid_custom_medications")
+        medications.append(
+            {
+                CONF_MEDICINE_NAME: name,
+                CONF_MAX_DOSES_24H: max_doses_value,
+                CONF_MAX_24H_MG: max_24h_value,
+                CONF_DOSE_MG: dose_value,
+            }
+        )
+    return medications
 
 
 class ChildMedicationDosageConfigFlow(
@@ -71,19 +138,27 @@ class ChildMedicationDosageConfigFlow(
 
         errors: dict[str, str] = {}
         if user_input is not None:
-            child = {
-                ATTR_CHILD_ID: uuid4().hex,
-                CONF_CHILD_NAME: user_input[CONF_CHILD_NAME].strip(),
-                CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
-                CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
-            }
-            if not child[CONF_CHILD_NAME]:
+            name = user_input[CONF_CHILD_NAME].strip()
+            if not name:
                 errors[CONF_CHILD_NAME] = "required"
             else:
-                return self.async_create_entry(
-                    title=child[CONF_CHILD_NAME],
-                    data={CONF_CHILDREN: [child]},
-                )
+                try:
+                    child = {
+                        ATTR_CHILD_ID: uuid4().hex,
+                        CONF_CHILD_NAME: name,
+                        CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
+                        CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
+                        CONF_CUSTOM_MEDICATIONS: _parse_custom_medications(
+                            user_input.get(CONF_CUSTOM_MEDICATIONS)
+                        ),
+                    }
+                except (TypeError, ValueError, vol.Invalid):
+                    errors[CONF_CUSTOM_MEDICATIONS] = "invalid_custom_medications"
+                else:
+                    return self.async_create_entry(
+                        title=child[CONF_CHILD_NAME],
+                        data={CONF_CHILDREN: [child]},
+                    )
 
         return self.async_show_form(
             step_id="user",
@@ -120,19 +195,26 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
             if not name:
                 errors[CONF_CHILD_NAME] = "required"
             else:
-                child = {
-                    ATTR_CHILD_ID: uuid4().hex,
-                    CONF_CHILD_NAME: name,
-                    CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
-                    CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
-                }
-                children = list(self._config_entry.data.get(CONF_CHILDREN, []))
-                children.append(child)
-                self.hass.config_entries.async_update_entry(
-                    self._config_entry,
-                    data={**self._config_entry.data, CONF_CHILDREN: children},
-                )
-                return self.async_create_entry(title="", data={})
+                try:
+                    child = {
+                        ATTR_CHILD_ID: uuid4().hex,
+                        CONF_CHILD_NAME: name,
+                        CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
+                        CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
+                        CONF_CUSTOM_MEDICATIONS: _parse_custom_medications(
+                            user_input.get(CONF_CUSTOM_MEDICATIONS)
+                        ),
+                    }
+                except (TypeError, ValueError, vol.Invalid):
+                    errors[CONF_CUSTOM_MEDICATIONS] = "invalid_custom_medications"
+                else:
+                    children = list(self._config_entry.data.get(CONF_CHILDREN, []))
+                    children.append(child)
+                    self.hass.config_entries.async_update_entry(
+                        self._config_entry,
+                        data={**self._config_entry.data, CONF_CHILDREN: children},
+                    )
+                    return self.async_create_entry(title="", data={})
 
         return self.async_show_form(
             step_id="init",

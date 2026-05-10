@@ -8,8 +8,13 @@ PLATFORMS = ["sensor"]
 CONF_CHILDREN = "children"
 CONF_CHILD_ID = "child_id"
 CONF_CHILD_NAME = "child_name"
+CONF_CUSTOM_MEDICATIONS = "custom_medications"
 CONF_DATE_OF_BIRTH = "date_of_birth"
 CONF_WEIGHT_KG = "weight_kg"
+CONF_MEDICINE_NAME = "name"
+CONF_MAX_DOSES_24H = "max_doses_24h"
+CONF_MAX_24H_MG = "max_24h_mg"
+CONF_DOSE_MG = "dose_mg"
 
 MEDICINE_PARACETAMOL = "paracetamol"
 MEDICINE_IBUPROFEN = "ibuprofen"

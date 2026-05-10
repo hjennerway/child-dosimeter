@@ -4,32 +4,36 @@
     "step": {
       "user": {
         "title": "Add child",
-        "description": "Add a child to monitor paracetamol and ibuprofen doses.",
+        "description": "Add a child to monitor medication doses. Custom medications are optional; enter one per line as: Name, max doses in 24h, max amount in 24h mg, dose size mg.",
         "data": {
           "child_name": "Name",
           "date_of_birth": "Date of birth",
-          "weight_kg": "Weight (kg)"
+          "weight_kg": "Weight (kg)",
+          "custom_medications": "Custom medications"
         }
       }
     },
     "error": {
-      "required": "This field is required."
+      "required": "This field is required.",
+      "invalid_custom_medications": "Enter custom medications as one per line: Name, max doses in 24h, max amount in 24h mg, dose size mg."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Add another child",
-        "description": "Add another child to this medication tracker.",
+        "description": "Add another child to this medication tracker. Custom medications are optional; enter one per line as: Name, max doses in 24h, max amount in 24h mg, dose size mg.",
         "data": {
           "child_name": "Name",
           "date_of_birth": "Date of birth",
-          "weight_kg": "Weight (kg)"
+          "weight_kg": "Weight (kg)",
+          "custom_medications": "Custom medications"
         }
       }
     },
     "error": {
-      "required": "This field is required."
+      "required": "This field is required.",
+      "invalid_custom_medications": "Enter custom medications as one per line: Name, max doses in 24h, max amount in 24h mg, dose size mg."
     }
   }
 }

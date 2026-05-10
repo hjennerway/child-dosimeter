@@ -12,7 +12,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import SIGNAL_HISTORY_UPDATED, children_from_entry, history_from_entry
+from . import (
+    SIGNAL_HISTORY_UPDATED,
+    child_medicine_names,
+    children_from_entry,
+    history_from_entry,
+)
 from .const import (
     ATTR_CHILD_ID,
     ATTR_CHILD_NAME,
@@ -25,10 +30,10 @@ from .const import (
     ATTR_RECOMMENDED_DOSE_MG,
     ATTR_TOTAL_24H_MG,
     CONF_CHILD_NAME,
+    CONF_CUSTOM_MEDICATIONS,
     CONF_DATE_OF_BIRTH,
     CONF_WEIGHT_KG,
     DOMAIN,
-    MEDICINES,
 )
 from .dosing import recommended_rule
 from .history import MedicationHistory
@@ -44,7 +49,7 @@ async def async_setup_entry(
     history = history_from_entry(hass, entry.entry_id)
     entities: list[SensorEntity] = []
     for child in children_from_entry(entry):
-        for medicine in MEDICINES:
+        for medicine in child_medicine_names(child):
             entities.append(MedicationDoseSensor(entry.entry_id, child, medicine, history))
     async_add_entities(entities)
 
@@ -93,7 +98,11 @@ class MedicationDoseSensor(SensorEntity):
         now = datetime.now(UTC)
         date_of_birth = self._child[CONF_DATE_OF_BIRTH]
         rule = recommended_rule(
-            self._medicine, date_of_birth, self._child[CONF_WEIGHT_KG], now
+            self._medicine,
+            date_of_birth,
+            self._child[CONF_WEIGHT_KG],
+            now,
+            self._child.get(CONF_CUSTOM_MEDICATIONS, []),
         )
         events = self._history.events_for(self._child[ATTR_CHILD_ID], self._medicine, now)
         events_48h = self._history.events_for(
