@@ -3,6 +3,7 @@
 Custom Home Assistant integration and Lovelace card for tracking rolling 24-hour
 medication administration for a child.
 
+# DISCLAIMER
 This is a home tracker, not medical advice. Confirm dose amounts, intervals, and
 medicine suitability with the medicine label, pharmacist, GP, NHS 111, or your
 clinician, especially for children under 3 months, unusual weights, other
