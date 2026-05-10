@@ -76,21 +76,25 @@ class MedicationHistory:
         return event
 
     async def async_clear(
-        self, child_id: str | None = None, medicine: str | None = None
+        self,
+        child_id: str | None = None,
+        medicine: str | None = None,
+        now: datetime | None = None,
+        window: timedelta = timedelta(hours=24),
     ) -> None:
-        """Clear all history, optionally filtered by child and medicine."""
+        """Clear recent history, optionally filtered by child and medicine."""
 
-        if child_id is None and medicine is None:
-            self._events = []
-        else:
-            self._events = [
-                event
-                for event in self._events
-                if not (
-                    (child_id is None or event.child_id == child_id)
-                    and (medicine is None or event.medicine == medicine)
-                )
-            ]
+        now = now or datetime.now(UTC)
+        cutoff = now - window
+        self._events = [
+            event
+            for event in self._events
+            if not (
+                (child_id is None or event.child_id == child_id)
+                and (medicine is None or event.medicine == medicine)
+                and event.given_at >= cutoff
+            )
+        ]
         await self._async_save()
 
     def events_for(
