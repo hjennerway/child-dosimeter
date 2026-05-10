@@ -96,11 +96,30 @@ class ChildDosageCard extends HTMLElement {
     const states = Object.entries(this._hass.states)
       .map(([entityId, state]) => ({ entityId, state }))
       .filter(({ state }) =>
-        (state.attributes.child_id === this.config.child_id || state.attributes.child_name === this.config.child_name) &&
+        this._matchesConfiguredChild(state.attributes) &&
         state.attributes.medicine
       );
     const byMedicine = Object.fromEntries(states.map((item) => [item.state.attributes.medicine, item]));
     return byMedicine;
+  }
+
+  _matchesConfiguredChild(attributes = {}) {
+    const configuredId = this._normalizeIdentifier(this.config.child_id);
+    const configuredName = this._normalizeIdentifier(this.config.child_name);
+    const childId = this._normalizeIdentifier(attributes.child_id);
+    const childName = this._normalizeIdentifier(attributes.child_name);
+    return Boolean(
+      (configuredId && configuredId === childId) ||
+      (configuredName && configuredName === childName)
+    );
+  }
+
+  _normalizeIdentifier(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
   }
 
   _render() {
