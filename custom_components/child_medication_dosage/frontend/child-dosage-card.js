@@ -16,8 +16,8 @@ class ChildDosageCard extends HTMLElement {
       show_child_name: true,
       show_child_age_weight: true,
       custom_medications: [],
-      paracetamol_dose_size: "120mg/5ml liquid",
-      ibuprofen_dose_size: "5ml/100mg",
+      paracetamol_dose_size: "auto",
+      ibuprofen_dose_size: "auto",
       ...config,
     };
     this._root = this.attachShadow({ mode: "open" });
@@ -293,19 +293,43 @@ class ChildDosageCard extends HTMLElement {
         "5ml/100mg": 100,
         "7.5ml/150mg": 150,
         "10ml/200mg": 200,
+        "15ml/300mg": 300,
       },
-    };
-    const defaults = {
-      paracetamol: "120mg/5ml liquid",
-      ibuprofen: "5ml/100mg",
     };
     if (!options[medicine]) {
       const mg = Number(attributes.recommended_dose_mg || 0);
       return { label: this._formatMg(mg), mg };
     }
     const configured = this.config[`${medicine}_dose_size`];
-    const label = Object.prototype.hasOwnProperty.call(options[medicine], configured) ? configured : defaults[medicine];
+    const label = configured === "auto"
+      ? this._autoDoseSize(medicine, attributes)
+      : Object.prototype.hasOwnProperty.call(options[medicine], configured)
+        ? configured
+        : this._autoDoseSize(medicine, attributes);
     return { label, mg: options[medicine][label] };
+  }
+  _autoDoseSize(medicine, attributes = {}) {
+    const months = this._ageMonths(attributes.date_of_birth);
+    if (medicine === "paracetamol") {
+      return months >= 72 ? "250mg/5ml liquid" : "120mg/5ml liquid";
+    }
+    if (medicine === "ibuprofen") {
+      if (months < 12) return "2.5ml/50mg";
+      if (months < 48) return "5ml/100mg";
+      if (months < 84) return "7.5ml/150mg";
+      if (months < 120) return "10ml/200mg";
+      return "15ml/300mg";
+    }
+    return this._formatMg(Number(attributes.recommended_dose_mg || 0));
+  }
+  _ageMonths(dobIso) {
+    if (!dobIso) return 0;
+    const dob = new Date(dobIso);
+    if (Number.isNaN(dob.getTime())) return 0;
+    const now = new Date();
+    let months = (now.getFullYear() - dob.getFullYear()) * 12 + now.getMonth() - dob.getMonth();
+    if (now.getDate() < dob.getDate()) months--;
+    return Math.max(0, months);
   }
   _barColor(percent) {
     if (percent >= 90) return "var(--error-color, #d32f2f)";
