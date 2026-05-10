@@ -116,8 +116,8 @@ show_dose_button: true
 show_reset_button: true
 custom_medications:
   - Antibiotic
-paracetamol_dose_size: 120mg/5ml liquid
-ibuprofen_dose_size: 5ml/100mg
+paracetamol_dose_size: auto
+ibuprofen_dose_size: auto
 ```
 
 | Option | Default | Description |
@@ -135,8 +135,8 @@ ibuprofen_dose_size: 5ml/100mg
 | `show_dose_button` | `true` | Show the button to record a dose in each medication row. |
 | `show_reset_button` | `true` | Show the button to reset that medication's rolling 24-hour history in each medication row. |
 | `custom_medications` | `[]` | Custom medication names to show. Use a YAML list or a comma-separated string. If omitted, all discovered custom medication sensors for the child are shown. |
-| `paracetamol_dose_size` | `120mg/5ml liquid` | Paracetamol dose recorded when the button is pressed. Options: `120mg/5ml liquid`, `250mg/5ml liquid`, `250mg tablet`. |
-| `ibuprofen_dose_size` | `5ml/100mg` | Ibuprofen dose recorded when the button is pressed. Options: `2.5ml/50mg`, `5ml/100mg`, `7.5ml/150mg`, `10ml/200mg`. |
+| `paracetamol_dose_size` | `auto` | Paracetamol dose recorded when the button is pressed. Options: `auto`, `120mg/5ml liquid`, `250mg/5ml liquid`, `250mg tablet`. `auto` uses `120mg/5ml liquid` for ages 0-5 and `250mg/5ml liquid` for ages 6+. |
+| `ibuprofen_dose_size` | `auto` | Ibuprofen dose recorded when the button is pressed. Options: `auto`, `2.5ml/50mg`, `5ml/100mg`, `7.5ml/150mg`, `10ml/200mg`, `15ml/300mg`. `auto` uses `2.5ml/50mg` for 3-11 months, `5ml/100mg` for 1-3 years, `7.5ml/150mg` for 4-6 years, `10ml/200mg` for 7-9 years, and `15ml/300mg` for 10 years+. |
 
 Each medication row includes a 24-hour dose graph showing doses administered
 against the maximum allowed doses for the medicine. Hide a whole medication row
