@@ -48,17 +48,15 @@ Restart Home Assistant.
 1. Go to **Settings > Devices & services > Add integration**.
 2. Search for **Child Medication Dosage**.
 3. Enter the child name, date of birth, and weight in kg.
-4. Optionally enter custom medications, one per line:
-
-   ```text
-   Name, max doses in 24h, max amount in 24h mg, dose size mg
-   Antibiotic, 3, 300, 100
-   ```
+4. Optionally enable **Configure custom medications**.
+5. For each custom medication, fill in the separate fields for medicine name,
+   max doses in 24h, max amount in 24h, and dose size. Enable **Add another
+   custom medication** to keep adding more.
 
    Custom medications are stored for that child and get the same sensors,
    dashboard controls, 24-hour totals, history popup, reset, and single-dose
    removal behavior as the built-in medicines.
-5. To add another child later, open the integration options and add another
+6. To add another child later, open the integration options and add another
    child.
 
 After adding another child, Home Assistant reloads the integration so the new

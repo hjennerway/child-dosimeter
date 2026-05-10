@@ -28,6 +28,9 @@ from .const import (
     MEDICINE_PARACETAMOL,
 )
 
+FIELD_ADD_ANOTHER_CUSTOM_MEDICATION = "add_another_custom_medication"
+FIELD_CONFIGURE_CUSTOM_MEDICATIONS = "configure_custom_medications"
+
 
 def _child_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     """Return the child form schema."""
@@ -53,13 +56,60 @@ def _child_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
                 )
             ),
             vol.Optional(
-                CONF_CUSTOM_MEDICATIONS,
-                default=_custom_medications_text(
-                    defaults.get(CONF_CUSTOM_MEDICATIONS, [])
-                ),
-            ): selector.TextSelector(
-                selector.TextSelectorConfig(multiline=True)
+                FIELD_CONFIGURE_CUSTOM_MEDICATIONS,
+                default=defaults.get(FIELD_CONFIGURE_CUSTOM_MEDICATIONS, False),
+            ): selector.BooleanSelector(),
+        }
+    )
+
+
+def _custom_medication_schema(
+    defaults: dict[str, Any] | None = None,
+) -> vol.Schema:
+    """Return the custom medication form schema."""
+
+    defaults = defaults or {}
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_MEDICINE_NAME, default=defaults.get(CONF_MEDICINE_NAME, "")
+            ): selector.TextSelector(),
+            vol.Required(
+                CONF_MAX_DOSES_24H, default=defaults.get(CONF_MAX_DOSES_24H, 4)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=1,
+                    max=24,
+                    mode=selector.NumberSelectorMode.BOX,
+                    step=1,
+                )
             ),
+            vol.Required(
+                CONF_MAX_24H_MG, default=defaults.get(CONF_MAX_24H_MG, 0)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=5000,
+                    mode=selector.NumberSelectorMode.BOX,
+                    step=0.1,
+                    unit_of_measurement="mg",
+                )
+            ),
+            vol.Required(
+                CONF_DOSE_MG, default=defaults.get(CONF_DOSE_MG, 0)
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=5000,
+                    mode=selector.NumberSelectorMode.BOX,
+                    step=0.1,
+                    unit_of_measurement="mg",
+                )
+            ),
+            vol.Optional(
+                FIELD_ADD_ANOTHER_CUSTOM_MEDICATION,
+                default=defaults.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION, False),
+            ): selector.BooleanSelector(),
         }
     )
 
@@ -72,56 +122,47 @@ def _date_string(value: Any) -> str:
     return date.fromisoformat(str(value)).isoformat()
 
 
-def _custom_medications_text(custom_medications: Any) -> str:
-    """Serialize custom medication config for the options form."""
+def _child_from_input(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Build stored child data from form input."""
 
-    if isinstance(custom_medications, str):
-        return custom_medications
-    return "\n".join(
-        (
-            f"{medication[CONF_MEDICINE_NAME]}, "
-            f"{medication[CONF_MAX_DOSES_24H]}, "
-            f"{medication[CONF_MAX_24H_MG]}, "
-            f"{medication[CONF_DOSE_MG]}"
-        )
-        for medication in custom_medications
-    )
+    return {
+        ATTR_CHILD_ID: uuid4().hex,
+        CONF_CHILD_NAME: user_input[CONF_CHILD_NAME].strip(),
+        CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
+        CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
+        CONF_CUSTOM_MEDICATIONS: [],
+    }
 
 
-def _parse_custom_medications(value: Any) -> list[dict[str, Any]]:
-    """Parse one custom medication per line from the config form."""
+def _custom_medication_from_input(
+    user_input: dict[str, Any], existing: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Build one stored custom medication from form input."""
 
-    medications: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for line in str(value or "").splitlines():
-        if not line.strip():
-            continue
-        parts = [part.strip() for part in line.split(",")]
-        if len(parts) != 4:
-            raise vol.Invalid("invalid_custom_medications")
-        name, max_doses, max_24h_mg, dose_mg = parts
-        key = name.casefold()
-        if (
-            not name
-            or key in seen
-            or key in (MEDICINE_PARACETAMOL, MEDICINE_IBUPROFEN)
-        ):
-            raise vol.Invalid("invalid_custom_medications")
-        seen.add(key)
-        max_doses_value = int(max_doses)
-        max_24h_value = float(max_24h_mg)
-        dose_value = float(dose_mg)
-        if max_doses_value < 1 or max_24h_value <= 0 or dose_value <= 0:
-            raise vol.Invalid("invalid_custom_medications")
-        medications.append(
-            {
-                CONF_MEDICINE_NAME: name,
-                CONF_MAX_DOSES_24H: max_doses_value,
-                CONF_MAX_24H_MG: max_24h_value,
-                CONF_DOSE_MG: dose_value,
-            }
-        )
-    return medications
+    name = user_input[CONF_MEDICINE_NAME].strip()
+    key = name.casefold()
+    existing_names = {
+        medication[CONF_MEDICINE_NAME].casefold() for medication in existing
+    }
+    if (
+        not name
+        or key in existing_names
+        or key in (MEDICINE_PARACETAMOL, MEDICINE_IBUPROFEN)
+    ):
+        raise vol.Invalid("invalid_custom_medication")
+
+    max_doses = int(user_input[CONF_MAX_DOSES_24H])
+    max_24h_mg = float(user_input[CONF_MAX_24H_MG])
+    dose_mg = float(user_input[CONF_DOSE_MG])
+    if max_doses < 1 or max_24h_mg <= 0 or dose_mg <= 0:
+        raise vol.Invalid("invalid_custom_medication")
+
+    return {
+        CONF_MEDICINE_NAME: name,
+        CONF_MAX_DOSES_24H: max_doses,
+        CONF_MAX_24H_MG: max_24h_mg,
+        CONF_DOSE_MG: dose_mg,
+    }
 
 
 class ChildMedicationDosageConfigFlow(
@@ -130,6 +171,12 @@ class ChildMedicationDosageConfigFlow(
     """Handle a config flow."""
 
     VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize config flow state."""
+
+        self._custom_medications: list[dict[str, Any]] = []
+        self._pending_child: dict[str, Any] | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -142,28 +189,52 @@ class ChildMedicationDosageConfigFlow(
             if not name:
                 errors[CONF_CHILD_NAME] = "required"
             else:
-                try:
-                    child = {
-                        ATTR_CHILD_ID: uuid4().hex,
-                        CONF_CHILD_NAME: name,
-                        CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
-                        CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
-                        CONF_CUSTOM_MEDICATIONS: _parse_custom_medications(
-                            user_input.get(CONF_CUSTOM_MEDICATIONS)
-                        ),
-                    }
-                except (TypeError, ValueError, vol.Invalid):
-                    errors[CONF_CUSTOM_MEDICATIONS] = "invalid_custom_medications"
-                else:
-                    return self.async_create_entry(
-                        title=child[CONF_CHILD_NAME],
-                        data={CONF_CHILDREN: [child]},
-                    )
+                self._pending_child = _child_from_input(user_input)
+                self._custom_medications = []
+                if user_input.get(FIELD_CONFIGURE_CUSTOM_MEDICATIONS):
+                    return await self.async_step_custom_medication()
+                return self._async_create_pending_child_entry()
 
         return self.async_show_form(
             step_id="user",
             data_schema=_child_schema(user_input),
             errors=errors,
+        )
+
+    async def async_step_custom_medication(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle one custom medication form."""
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                self._custom_medications.append(
+                    _custom_medication_from_input(
+                        user_input, self._custom_medications
+                    )
+                )
+            except (TypeError, ValueError, vol.Invalid):
+                errors["base"] = "invalid_custom_medication"
+            else:
+                if user_input.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION):
+                    return await self.async_step_custom_medication()
+                return self._async_create_pending_child_entry()
+
+        return self.async_show_form(
+            step_id="custom_medication",
+            data_schema=_custom_medication_schema(user_input),
+            errors=errors,
+        )
+
+    def _async_create_pending_child_entry(self) -> config_entries.ConfigFlowResult:
+        """Create the entry after any custom medications have been collected."""
+
+        child = self._pending_child or {}
+        child[CONF_CUSTOM_MEDICATIONS] = list(self._custom_medications)
+        return self.async_create_entry(
+            title=child[CONF_CHILD_NAME],
+            data={CONF_CHILDREN: [child]},
         )
 
     @staticmethod
@@ -183,6 +254,8 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
         """Initialize options flow."""
 
         self._config_entry = config_entry
+        self._custom_medications: list[dict[str, Any]] = []
+        self._pending_child: dict[str, Any] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -195,29 +268,53 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
             if not name:
                 errors[CONF_CHILD_NAME] = "required"
             else:
-                try:
-                    child = {
-                        ATTR_CHILD_ID: uuid4().hex,
-                        CONF_CHILD_NAME: name,
-                        CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
-                        CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
-                        CONF_CUSTOM_MEDICATIONS: _parse_custom_medications(
-                            user_input.get(CONF_CUSTOM_MEDICATIONS)
-                        ),
-                    }
-                except (TypeError, ValueError, vol.Invalid):
-                    errors[CONF_CUSTOM_MEDICATIONS] = "invalid_custom_medications"
-                else:
-                    children = list(self._config_entry.data.get(CONF_CHILDREN, []))
-                    children.append(child)
-                    self.hass.config_entries.async_update_entry(
-                        self._config_entry,
-                        data={**self._config_entry.data, CONF_CHILDREN: children},
-                    )
-                    return self.async_create_entry(title="", data={})
+                self._pending_child = _child_from_input(user_input)
+                self._custom_medications = []
+                if user_input.get(FIELD_CONFIGURE_CUSTOM_MEDICATIONS):
+                    return await self.async_step_custom_medication()
+                return self._async_update_entry_with_pending_child()
 
         return self.async_show_form(
             step_id="init",
             data_schema=_child_schema(user_input),
             errors=errors,
         )
+
+    async def async_step_custom_medication(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle one custom medication form."""
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                self._custom_medications.append(
+                    _custom_medication_from_input(
+                        user_input, self._custom_medications
+                    )
+                )
+            except (TypeError, ValueError, vol.Invalid):
+                errors["base"] = "invalid_custom_medication"
+            else:
+                if user_input.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION):
+                    return await self.async_step_custom_medication()
+                return self._async_update_entry_with_pending_child()
+
+        return self.async_show_form(
+            step_id="custom_medication",
+            data_schema=_custom_medication_schema(user_input),
+            errors=errors,
+        )
+
+    def _async_update_entry_with_pending_child(self) -> config_entries.ConfigFlowResult:
+        """Add the pending child to the existing config entry."""
+
+        child = self._pending_child or {}
+        child[CONF_CUSTOM_MEDICATIONS] = list(self._custom_medications)
+        children = list(self._config_entry.data.get(CONF_CHILDREN, []))
+        children.append(child)
+        self.hass.config_entries.async_update_entry(
+            self._config_entry,
+            data={**self._config_entry.data, CONF_CHILDREN: children},
+        )
+        return self.async_create_entry(title="", data={})
