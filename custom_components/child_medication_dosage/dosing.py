@@ -24,6 +24,7 @@ class DoseRule:
     max_24h_mg: float
     max_doses_24h: int
     note: str
+    consult_warning: str | None = None
 
 
 def age_months(date_of_birth: date, today: date | None = None) -> int:
@@ -68,6 +69,7 @@ def _paracetamol_rule(months_old: int) -> DoseRule:
             max_24h_mg=0,
             max_doses_24h=0,
             note="under 3 months: clinician-specific dosing required",
+            consult_warning="Consult a doctor if child is less than 3 months old",
         )
     return DoseRule(
         medicine=MEDICINE_PARACETAMOL,
@@ -81,13 +83,14 @@ def _paracetamol_rule(months_old: int) -> DoseRule:
 def _ibuprofen_rule(weight_kg: float, months_old: int) -> DoseRule:
     """Return ibuprofen dosing from the supplied weight-based schedule."""
 
-    if months_old < 3:
+    if weight_kg < 5:
         return DoseRule(
             medicine=MEDICINE_IBUPROFEN,
             dose_mg=0,
             max_24h_mg=0,
             max_doses_24h=0,
-            note="under 3 months: not covered by supplied schedule",
+            note="under 5 kg: clinician-specific dosing required",
+            consult_warning="Consult a doctor if child is less than 5kg",
         )
 
     # The photo gives rounded individual doses for common weights. Interpolate

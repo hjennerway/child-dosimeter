@@ -116,23 +116,24 @@ class ChildDosageCard extends HTMLElement {
     const barColor = this._barColor(percent);
     const last = a.last_dose_at ? this._formatDateTime(a.last_dose_at) : "No doses recorded";
     const doseSize = this._doseSize(medicine, a);
+    const consultWarning = a.consult_warning;
     return `
       <div class="row">
         <div class="details">
           <div class="top"><b>${this._escape(label)}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
           <div class="dose-size">Dose size: ${this._escape(doseSize.label)}</div>
-          <div class="bar" data-medicine="${this._escape(medicine)}" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
-          ${percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
+          ${consultWarning ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>${this._escape(consultWarning)}</span></div>` : `<div class="bar" data-medicine="${this._escape(medicine)}" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>`}
+          ${!consultWarning && percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
           <div class="meta">
             ${this.config.show_amount_in_last24h ? `<span><span class="label">Amount 24h:</span> ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
             ${this.config.show_last_dose_time ? `<span><span class="label">Last dose:</span> ${last}</span>` : ""}
             ${this.config.show_time_since_last_dose ? `<span><span class="label">Since last:</span> ${this._timeSince(a.last_dose_at)}</span>` : ""}
           </div>
         </div>
-        <div class="actions">
+        ${consultWarning ? "" : `<div class="actions">
           ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${this._escape(medicine)}" data-dose-mg="${this._escape(doseSize.mg)}">Record ${this._escape(label)}</button>` : ""}
           ${this.config.show_reset_button ? `<button class="reset" data-reset="${this._escape(medicine)}">Reset</button>` : ""}
-        </div>
+        </div>`}
       </div>`;
   }
 
