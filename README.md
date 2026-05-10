@@ -82,7 +82,7 @@ resource and use the integration-served URL above.
 Home Assistant and browsers can cache custom card modules. After updating the
 card, increment the `v=` value in the resource URL and refresh the dashboard.
 
-Then add a manual card:
+Then add the card from the dashboard UI, or add a manual card:
 
 ```yaml
 type: custom:child-dosage-card
@@ -92,6 +92,10 @@ child_name: Child Name
 
 You can also use the stable `child_id` instead of `child_name`. Find the
 `child_id` in the attributes of one of the created medication sensors.
+
+The card includes a visual editor in the Home Assistant dashboard card picker.
+Use it to choose the child, toggle row sections, select dose-size behaviour, and
+enter custom medications without editing YAML.
 
 ### Card Options
 

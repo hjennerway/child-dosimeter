@@ -1,4 +1,27 @@
 class ChildDosageCard extends HTMLElement {
+  static getConfigElement() {
+    return document.createElement("child-dosage-card-editor");
+  }
+
+  static getStubConfig() {
+    return {
+      title: "Medication dosage",
+      child_name: "Child Name",
+      show_paracetamol: true,
+      show_ibuprofen: true,
+      show_last_dose_time: true,
+      show_time_since_last_dose: true,
+      show_amount_in_last24h: true,
+      show_dose_button: true,
+      show_reset_button: true,
+      show_child_name: true,
+      show_child_age_weight: true,
+      custom_medications: [],
+      paracetamol_dose_size: "auto",
+      ibuprofen_dose_size: "auto",
+    };
+  }
+
   setConfig(config) {
     if (!config.child_id && !config.child_name) {
       throw new Error("child_id or child_name is required");
@@ -316,6 +339,157 @@ class ChildDosageCard extends HTMLElement {
   _formatDateTime(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString(); }
   _escape(value) { return String(value).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 }
+
+class ChildDosageCardEditor extends HTMLElement {
+  setConfig(config) {
+    this.config = {
+      ...ChildDosageCard.getStubConfig(),
+      ...config,
+    };
+    if (!this._root) {
+      this._root = this.attachShadow({ mode: "open" });
+    }
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this.config) this._render();
+  }
+
+  _render() {
+    const childOptions = this._childOptions();
+    this._root.innerHTML = `
+      <style>
+        .editor { display: grid; gap: 16px; }
+        .section { display: grid; gap: 10px; padding-block: 4px 10px; border-bottom: 1px solid var(--divider-color); }
+        .section:last-child { border-bottom: 0; }
+        .heading { font-size: 14px; font-weight: 700; color: var(--primary-text-color); }
+        .grid { display: grid; gap: 10px; }
+        .toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 40px; }
+        .toggle span { min-width: 0; }
+        ha-textfield, ha-select { width: 100%; }
+      </style>
+      <div class="editor">
+        <div class="section">
+          <div class="heading">Child</div>
+          ${childOptions.length ? `
+            <ha-select label="Configured child" data-field="child_id" fixedMenuPosition value="${this._escape(this.config.child_id || "")}">
+              <mwc-list-item value=""></mwc-list-item>
+              ${childOptions.map((child) => `<mwc-list-item value="${this._escape(child.id)}">${this._escape(child.label)}</mwc-list-item>`).join("")}
+            </ha-select>
+          ` : ""}
+          <ha-textfield label="Child ID" data-field="child_id" value="${this._escape(this.config.child_id || "")}"></ha-textfield>
+          <ha-textfield label="Child name" data-field="child_name" value="${this._escape(this.config.child_name || "")}"></ha-textfield>
+        </div>
+
+        <div class="section">
+          <div class="heading">Header</div>
+          <ha-textfield label="Title" data-field="title" value="${this._escape(this.config.title || "")}"></ha-textfield>
+          ${this._toggleTemplate("show_child_name", "Show child name")}
+          ${this._toggleTemplate("show_child_age_weight", "Show child age and weight")}
+        </div>
+
+        <div class="section">
+          <div class="heading">Medicines</div>
+          ${this._toggleTemplate("show_paracetamol", "Show paracetamol")}
+          <ha-select label="Paracetamol dose size" data-field="paracetamol_dose_size" fixedMenuPosition value="${this._escape(this.config.paracetamol_dose_size || "auto")}">
+            ${this._doseOptionTemplates(["auto", "120mg/5ml liquid", "250mg/5ml liquid", "250mg tablet"])}
+          </ha-select>
+          ${this._toggleTemplate("show_ibuprofen", "Show ibuprofen")}
+          <ha-select label="Ibuprofen dose size" data-field="ibuprofen_dose_size" fixedMenuPosition value="${this._escape(this.config.ibuprofen_dose_size || "auto")}">
+            ${this._doseOptionTemplates(["auto", "2.5ml/50mg", "5ml/100mg", "7.5ml/150mg", "10ml/200mg", "15ml/300mg"])}
+          </ha-select>
+          <ha-textfield label="Custom medications" helper="Comma-separated names, or leave blank to show all discovered custom medicines" data-field="custom_medications" value="${this._escape(this._customMedicationsValue())}"></ha-textfield>
+        </div>
+
+        <div class="section">
+          <div class="heading">Rows</div>
+          ${this._toggleTemplate("show_last_dose_time", "Show last dose time")}
+          ${this._toggleTemplate("show_time_since_last_dose", "Show time since last dose")}
+          ${this._toggleTemplate("show_amount_in_last24h", "Show amount in last 24h")}
+          ${this._toggleTemplate("show_dose_button", "Show record dose button")}
+          ${this._toggleTemplate("show_reset_button", "Show reset button")}
+        </div>
+      </div>
+    `;
+
+    this._root.querySelectorAll("ha-textfield").forEach((field) => {
+      field.addEventListener("input", () => this._valueChanged(field));
+      field.addEventListener("change", () => this._valueChanged(field));
+    });
+    this._root.querySelectorAll("ha-select").forEach((field) => {
+      field.addEventListener("selected", () => this._valueChanged(field));
+      field.addEventListener("closed", () => this._valueChanged(field));
+      field.addEventListener("change", () => this._valueChanged(field));
+    });
+    this._root.querySelectorAll("ha-switch").forEach((field) => {
+      field.addEventListener("change", () => this._valueChanged(field));
+    });
+  }
+
+  _toggleTemplate(field, label) {
+    return `
+      <label class="toggle">
+        <span>${this._escape(label)}</span>
+        <ha-switch data-field="${this._escape(field)}" ${this.config[field] ? "checked" : ""}></ha-switch>
+      </label>
+    `;
+  }
+
+  _doseOptionTemplates(options) {
+    return options.map((option) => `<mwc-list-item value="${this._escape(option)}">${this._escape(option)}</mwc-list-item>`).join("");
+  }
+
+  _valueChanged(element) {
+    const field = element.dataset.field;
+    if (!field) return;
+    let value = element.checked;
+    if (element.tagName !== "HA-SWITCH") {
+      value = element.value;
+    }
+    if (field === "custom_medications") {
+      value = String(value || "").split(",").map((name) => name.trim()).filter(Boolean);
+    }
+    const config = { ...this.config, [field]: value };
+    if (field === "child_id" && value) delete config.child_name;
+    if (field === "child_name" && value) delete config.child_id;
+    this.config = config;
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      bubbles: true,
+      composed: true,
+      detail: { config },
+    }));
+  }
+
+  _customMedicationsValue() {
+    const value = this.config.custom_medications;
+    return Array.isArray(value) ? value.join(", ") : String(value || "");
+  }
+
+  _childOptions() {
+    const children = new Map();
+    for (const state of Object.values(this._hass?.states || {})) {
+      const attrs = state.attributes || {};
+      if (!attrs.child_id || !attrs.medicine) continue;
+      const label = attrs.child_name ? `${attrs.child_name} (${attrs.child_id})` : attrs.child_id;
+      children.set(attrs.child_id, { id: attrs.child_id, label });
+    }
+    return [...children.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  _escape(value) {
+    return String(value).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+}
+
 customElements.define("child-dosage-card", ChildDosageCard);
+customElements.define("child-dosage-card-editor", ChildDosageCardEditor);
 window.customCards = window.customCards || [];
-window.customCards.push({ type: "child-dosage-card", name: "Child Dosage Card", description: "Track child medication doses." });
+window.customCards.push({
+  type: "child-dosage-card",
+  name: "Child Dosage Card",
+  description: "Track child medication doses.",
+  preview: true,
+  documentationURL: "https://github.com/hjennerway/child-dosimeter",
+});
