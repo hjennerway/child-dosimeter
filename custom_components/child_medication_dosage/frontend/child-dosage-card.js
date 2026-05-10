@@ -360,7 +360,19 @@ class ChildDosageCard extends HTMLElement {
     return "var(--ok-color, #2e7d32)";
   }
   _formatMg(value) { return `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })} mg`; }
-  _formatDateTime(value) { const d = new Date(value); return Number.isNaN(d.getTime()) ? value : d.toLocaleString(); }
+  _formatDateTime(value) {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(d);
+    const part = (type) => parts.find((item) => item.type === type)?.value || "";
+    return `${part("day")} ${part("month")}, ${part("hour")}:${part("minute")}`;
+  }
   _escape(value) { return String(value).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 }
 
