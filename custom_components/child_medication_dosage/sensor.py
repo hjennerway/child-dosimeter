@@ -131,6 +131,7 @@ class MedicationDoseSensor(SensorEntity):
                 for event in sorted(events_48h, key=lambda event: event.given_at, reverse=True)
             ],
             "rule_note": rule.note,
+            "consult_warning": rule.consult_warning,
             "weight_kg": self._child[CONF_WEIGHT_KG],
         }
 
