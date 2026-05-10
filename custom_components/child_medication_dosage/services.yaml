@@ -7,10 +7,7 @@ give_dose:
     medicine:
       required: true
       selector:
-        select:
-          options:
-            - paracetamol
-            - ibuprofen
+        text:
     dose_mg:
       required: false
       selector:
@@ -27,10 +24,7 @@ clear_history:
     medicine:
       required: false
       selector:
-        select:
-          options:
-            - paracetamol
-            - ibuprofen
+        text:
 remove_dose:
   fields:
     child_id:
@@ -40,10 +34,7 @@ remove_dose:
     medicine:
       required: true
       selector:
-        select:
-          options:
-            - paracetamol
-            - ibuprofen
+        text:
     given_at:
       required: true
       selector:

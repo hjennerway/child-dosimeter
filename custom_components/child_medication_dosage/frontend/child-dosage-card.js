@@ -15,6 +15,7 @@ class ChildDosageCard extends HTMLElement {
       show_reset_button: true,
       show_child_name: true,
       show_child_age_weight: true,
+      custom_medications: [],
       paracetamol_dose_size: "120mg/5ml liquid",
       ibuprofen_dose_size: "5ml/100mg",
       ...config,
@@ -73,20 +74,24 @@ class ChildDosageCard extends HTMLElement {
       .map(([entityId, state]) => ({ entityId, state }))
       .filter(({ state }) =>
         (state.attributes.child_id === this.config.child_id || state.attributes.child_name === this.config.child_name) &&
-        ["paracetamol", "ibuprofen"].includes(state.attributes.medicine)
+        state.attributes.medicine
       );
     const byMedicine = Object.fromEntries(states.map((item) => [item.state.attributes.medicine, item]));
-    return { paracetamol: byMedicine.paracetamol, ibuprofen: byMedicine.ibuprofen };
+    return byMedicine;
   }
 
   _render() {
     const states = this._findStates();
-    const attrs = states.paracetamol?.state.attributes || states.ibuprofen?.state.attributes || {};
+    const firstState = Object.values(states)[0];
+    const attrs = firstState?.state.attributes || {};
     const childName = attrs.child_name || this.config.child_id || "Child";
     const ageWeight = this._childAgeWeight(attrs.date_of_birth, attrs.weight_kg);
     const meds = [];
     if (this.config.show_paracetamol) meds.push(["paracetamol", states.paracetamol]);
     if (this.config.show_ibuprofen) meds.push(["ibuprofen", states.ibuprofen]);
+    for (const medicine of this._customMedicationNames(states)) {
+      meds.push([medicine, states[medicine]]);
+    }
 
     this._content.innerHTML = `
       <div class="title">${this._escape(this.config.title)}</div>
@@ -101,8 +106,8 @@ class ChildDosageCard extends HTMLElement {
   }
 
   _medicineTemplate(medicine, item) {
-    const label = this._titleCase(medicine);
-    if (!item) return `<div class="row"><div class="details"><div class="top"><b>${label}</b><span>sensor not found</span></div></div></div>`;
+    const label = this._medicineLabel(medicine);
+    if (!item) return `<div class="row"><div class="details"><div class="top"><b>${this._escape(label)}</b><span>sensor not found</span></div></div></div>`;
     const a = item.state.attributes;
     const total = Number(a.total_24h_mg || 0);
     const max = Number(a.max_24h_mg || 0);
@@ -110,13 +115,13 @@ class ChildDosageCard extends HTMLElement {
     const fillWidth = Math.min(100, percent);
     const barColor = this._barColor(percent);
     const last = a.last_dose_at ? this._formatDateTime(a.last_dose_at) : "No doses recorded";
-    const doseSize = this._doseSize(medicine);
+    const doseSize = this._doseSize(medicine, a);
     return `
       <div class="row">
         <div class="details">
-          <div class="top"><b>${label}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
+          <div class="top"><b>${this._escape(label)}</b><span>${a.doses_24h || 0}/${a.max_doses_24h || 0} doses</span></div>
           <div class="dose-size">Dose size: ${this._escape(doseSize.label)}</div>
-          <div class="bar" data-medicine="${medicine}" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
+          <div class="bar" data-medicine="${this._escape(medicine)}" data-log='${this._escape(JSON.stringify(a.dose_log_48h || []))}' title="Show last 48h dose log"><div class="fill" style="--fill-width:${fillWidth}%; --bar-color:${barColor}"></div></div>
           ${percent > 100 ? `<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><span>24h Dose Exceeded</span></div>` : ""}
           <div class="meta">
             ${this.config.show_amount_in_last24h ? `<span><span class="label">Amount 24h:</span> ${this._formatMg(total)} / ${this._formatMg(max)}</span>` : ""}
@@ -125,23 +130,22 @@ class ChildDosageCard extends HTMLElement {
           </div>
         </div>
         <div class="actions">
-          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${medicine}">Record ${label}</button>` : ""}
-          ${this.config.show_reset_button ? `<button class="reset" data-reset="${medicine}">Reset</button>` : ""}
+          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${this._escape(medicine)}" data-dose-mg="${this._escape(doseSize.mg)}">Record ${this._escape(label)}</button>` : ""}
+          ${this.config.show_reset_button ? `<button class="reset" data-reset="${this._escape(medicine)}">Reset</button>` : ""}
         </div>
       </div>`;
   }
 
   async _giveDose(medicine, button) {
-    const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
+    const childId = this._childId();
     if (!childId) return;
-    const doseSize = this._doseSize(medicine);
     button.disabled = true;
-    try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine, dose_mg: doseSize.mg }); }
+    try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine, dose_mg: Number(button.dataset.doseMg) }); }
     finally { button.disabled = false; }
   }
 
   async _resetDose(medicine, button) {
-    const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
+    const childId = this._childId();
     if (!childId) return;
     if (!window.confirm("This will reset dosage for the last 24 hours to zero, continue?")) return;
     button.disabled = true;
@@ -198,7 +202,7 @@ class ChildDosageCard extends HTMLElement {
   }
 
   async _removeDose(button) {
-    const childId = this.config.child_id || this._findStates().paracetamol?.state.attributes.child_id || this._findStates().ibuprofen?.state.attributes.child_id;
+    const childId = this._childId();
     if (!childId) return;
     if (!window.confirm("Remove this recorded dose?")) return;
     button.disabled = true;
@@ -259,7 +263,24 @@ class ChildDosageCard extends HTMLElement {
     return `${timeSince} ago`;
   }
   _titleCase(value) { return String(value).charAt(0).toUpperCase() + String(value).slice(1); }
-  _doseSize(medicine) {
+  _medicineLabel(value) {
+    if (String(value).includes(" ")) return String(value);
+    return this._titleCase(value);
+  }
+  _childId() {
+    if (this.config.child_id) return this.config.child_id;
+    const firstState = Object.values(this._findStates())[0];
+    return firstState?.state.attributes.child_id;
+  }
+  _customMedicationNames(states) {
+    const configured = Array.isArray(this.config.custom_medications)
+      ? this.config.custom_medications
+      : String(this.config.custom_medications || "").split(",");
+    const names = configured.map((name) => String(name).trim()).filter(Boolean);
+    if (names.length) return names;
+    return Object.keys(states).filter((medicine) => !["paracetamol", "ibuprofen"].includes(medicine));
+  }
+  _doseSize(medicine, attributes = {}) {
     const options = {
       paracetamol: {
         "120mg/5ml liquid": 120,
@@ -277,6 +298,10 @@ class ChildDosageCard extends HTMLElement {
       paracetamol: "120mg/5ml liquid",
       ibuprofen: "5ml/100mg",
     };
+    if (!options[medicine]) {
+      const mg = Number(attributes.recommended_dose_mg || 0);
+      return { label: this._formatMg(mg), mg };
+    }
     const configured = this.config[`${medicine}_dose_size`];
     const label = Object.prototype.hasOwnProperty.call(options[medicine], configured) ? configured : defaults[medicine];
     return { label, mg: options[medicine][label] };

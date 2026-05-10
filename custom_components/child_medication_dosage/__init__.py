@@ -21,8 +21,8 @@ from .const import (
     ATTR_GIVEN_AT,
     ATTR_MEDICINE,
     CONF_CHILDREN,
+    CONF_CUSTOM_MEDICATIONS,
     DOMAIN,
-    MEDICINES,
     PLATFORMS,
     SERVICE_CLEAR_HISTORY,
     SERVICE_GIVE_DOSE,
@@ -102,8 +102,20 @@ def children_from_entry(entry: ConfigEntry) -> list[dict[str, Any]]:
         dob = parsed.get("date_of_birth")
         if isinstance(dob, str):
             parsed["date_of_birth"] = date.fromisoformat(dob)
+        parsed.setdefault(CONF_CUSTOM_MEDICATIONS, [])
         children.append(parsed)
     return children
+
+
+def child_medicine_names(child: dict[str, Any]) -> list[str]:
+    """Return built-in and custom medication names for a child."""
+
+    names = ["paracetamol", "ibuprofen"]
+    for medication in child.get(CONF_CUSTOM_MEDICATIONS, []):
+        name = str(medication.get("name", "")).strip()
+        if name and name not in names:
+            names.append(name)
+    return names
 
 
 def history_from_entry(hass: HomeAssistant, entry_id: str) -> MedicationHistory:
@@ -144,8 +156,11 @@ def _async_register_services(hass: HomeAssistant) -> None:
                 child["date_of_birth"],
                 child["weight_kg"],
                 datetime.now(UTC),
+                child.get(CONF_CUSTOM_MEDICATIONS, []),
             )
             dose_mg = rule.dose_mg
+        elif medicine not in child_medicine_names(child):
+            raise vol.Invalid(f"Unsupported medicine: {medicine}")
         await history.async_add(child_id, medicine, float(dose_mg), datetime.now(UTC))
         async_dispatcher_send(hass, SIGNAL_HISTORY_UPDATED, child_id, medicine)
 
@@ -180,7 +195,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Required(ATTR_CHILD_ID): cv.string,
-                vol.Required(ATTR_MEDICINE): vol.In(MEDICINES),
+                vol.Required(ATTR_MEDICINE): cv.string,
                 vol.Optional(ATTR_DOSE_MG): vol.Coerce(float),
             }
         ),
@@ -192,7 +207,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Optional(ATTR_CHILD_ID): cv.string,
-                vol.Optional(ATTR_MEDICINE): vol.In(MEDICINES),
+                vol.Optional(ATTR_MEDICINE): cv.string,
             }
         ),
     )
@@ -203,7 +218,7 @@ def _async_register_services(hass: HomeAssistant) -> None:
         schema=vol.Schema(
             {
                 vol.Required(ATTR_CHILD_ID): cv.string,
-                vol.Required(ATTR_MEDICINE): vol.In(MEDICINES),
+                vol.Required(ATTR_MEDICINE): cv.string,
                 vol.Required(ATTR_GIVEN_AT): cv.string,
                 vol.Required(ATTR_DOSE_MG): vol.Coerce(float),
             }

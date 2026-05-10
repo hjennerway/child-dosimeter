@@ -7,6 +7,12 @@ from datetime import date, datetime
 from math import floor
 
 from .const import MEDICINE_IBUPROFEN, MEDICINE_PARACETAMOL
+from .const import (
+    CONF_DOSE_MG,
+    CONF_MAX_24H_MG,
+    CONF_MAX_DOSES_24H,
+    CONF_MEDICINE_NAME,
+)
 
 
 @dataclass(frozen=True)
@@ -128,6 +134,7 @@ def recommended_rule(
     date_of_birth: date,
     weight_kg: float,
     now: datetime | None = None,
+    custom_medications: list[dict] | None = None,
 ) -> DoseRule:
     """Return the dose rule for a medicine and child."""
 
@@ -137,4 +144,13 @@ def recommended_rule(
         return _paracetamol_rule(months_old)
     if medicine == MEDICINE_IBUPROFEN:
         return _ibuprofen_rule(weight_kg, months_old)
+    for custom in custom_medications or []:
+        if custom[CONF_MEDICINE_NAME] == medicine:
+            return DoseRule(
+                medicine=medicine,
+                dose_mg=float(custom[CONF_DOSE_MG]),
+                max_24h_mg=float(custom[CONF_MAX_24H_MG]),
+                max_doses_24h=int(custom[CONF_MAX_DOSES_24H]),
+                note="custom medication",
+            )
     raise ValueError(f"Unsupported medicine: {medicine}")

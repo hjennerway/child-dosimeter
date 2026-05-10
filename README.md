@@ -1,7 +1,7 @@
 # Child Medication Dosage for Home Assistant
 
 Custom Home Assistant integration and Lovelace card for tracking rolling 24-hour
-paracetamol and ibuprofen administration for a child.
+medication administration for a child.
 
 This is a home tracker, not medical advice. Confirm dose amounts, intervals, and
 medicine suitability with the medicine label, pharmacist, GP, NHS 111, or your
@@ -15,10 +15,11 @@ conditions, or medicines with overlapping ingredients.
 - Creates one sensor per child and medicine:
   - paracetamol rolling 24-hour total
   - ibuprofen rolling 24-hour total
+  - any configured custom medication rolling 24-hour total
 - Provides a `child_medication_dosage.give_dose` service.
 - Provides a dashboard card with:
   - child name, age, and weight
-  - configurable paracetamol and ibuprofen rows
+  - configurable medication rows
   - last dose time and time since last dose for each medicine
   - per-medicine record and reset buttons
   - removal of individual recorded doses from the history popup
@@ -47,7 +48,17 @@ Restart Home Assistant.
 1. Go to **Settings > Devices & services > Add integration**.
 2. Search for **Child Medication Dosage**.
 3. Enter the child name, date of birth, and weight in kg.
-4. To add another child later, open the integration options and add another
+4. Optionally enter custom medications, one per line:
+
+   ```text
+   Name, max doses in 24h, max amount in 24h mg, dose size mg
+   Antibiotic, 3, 300, 100
+   ```
+
+   Custom medications are stored for that child and get the same sensors,
+   dashboard controls, 24-hour totals, history popup, reset, and single-dose
+   removal behavior as the built-in medicines.
+5. To add another child later, open the integration options and add another
    child.
 
 After adding another child, Home Assistant reloads the integration so the new
@@ -101,6 +112,8 @@ show_time_since_last_dose: true
 show_amount_in_last24h: true
 show_dose_button: true
 show_reset_button: true
+custom_medications:
+  - Antibiotic
 paracetamol_dose_size: 120mg/5ml liquid
 ibuprofen_dose_size: 5ml/100mg
 ```
@@ -119,13 +132,15 @@ ibuprofen_dose_size: 5ml/100mg
 | `show_amount_in_last24h` | `true` | Show the rolling 24-hour amount used against the allowed amount in each medication row. |
 | `show_dose_button` | `true` | Show the button to record a dose in each medication row. |
 | `show_reset_button` | `true` | Show the button to reset that medication's rolling 24-hour history in each medication row. |
+| `custom_medications` | `[]` | Custom medication names to show. Use a YAML list or a comma-separated string. If omitted, all discovered custom medication sensors for the child are shown. |
 | `paracetamol_dose_size` | `120mg/5ml liquid` | Paracetamol dose recorded when the button is pressed. Options: `120mg/5ml liquid`, `250mg/5ml liquid`, `250mg tablet`. |
 | `ibuprofen_dose_size` | `5ml/100mg` | Ibuprofen dose recorded when the button is pressed. Options: `2.5ml/50mg`, `5ml/100mg`, `7.5ml/150mg`, `10ml/200mg`. |
 
 Each medication row includes a 24-hour dose graph showing doses administered
 against the maximum allowed doses for the medicine. Hide a whole medication row
-with `show_paracetamol` or `show_ibuprofen`; hide individual row elements with
-the other `show_*` options.
+with `show_paracetamol`, `show_ibuprofen`, or by omitting a custom name from
+`custom_medications`; hide individual row elements with the other `show_*`
+options.
 
 ## Services
 
