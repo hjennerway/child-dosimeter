@@ -154,7 +154,7 @@ class ChildDosageCard extends HTMLElement {
           </div>
         </div>
         ${consultWarning ? "" : `<div class="actions">
-          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${this._escape(medicine)}" data-dose-mg="${this._escape(doseSize.mg)}">Record ${this._escape(label)}</button>` : ""}
+          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${this._escape(medicine)}" data-dose-mg="${this._escape(doseSize.mg)}" data-last-dose-at="${this._escape(a.last_dose_at || "")}">Record ${this._escape(label)}</button>` : ""}
           ${this.config.show_reset_button ? `<button class="reset" data-reset="${this._escape(medicine)}">Reset</button>` : ""}
         </div>`}
       </div>`;
@@ -163,6 +163,8 @@ class ChildDosageCard extends HTMLElement {
   async _giveDose(medicine, button) {
     const childId = this._childId();
     if (!childId) return;
+    const confirmation = this._doseIntervalConfirmation(button.dataset.lastDoseAt);
+    if (confirmation && !window.confirm(confirmation)) return;
     button.disabled = true;
     try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine, dose_mg: Number(button.dataset.doseMg) }); }
     finally { button.disabled = false; }
@@ -279,6 +281,17 @@ class ChildDosageCard extends HTMLElement {
     const ms = Date.now() - new Date(value).getTime();
     if (Number.isNaN(ms) || ms < 0) return "soon";
     return ms >= 4 * 60 * 60 * 1000 ? "ready" : "soon";
+  }
+  _doseIntervalConfirmation(value) {
+    if (!value) return "";
+    const ms = Date.now() - new Date(value).getTime();
+    if (Number.isNaN(ms) || ms < 0 || ms >= 4 * 60 * 60 * 1000) return "";
+    const totalMinutes = Math.floor(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const hourLabel = `${hours} ${hours === 1 ? "hour" : "hours"}`;
+    const minuteLabel = `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+    return `Last dose was given ${hourLabel} and ${minuteLabel} ago. Recommendation is 4-6 hours between doses. Confirm another dose?`;
   }
   _relativeTimeLabel(value) {
     const timeSince = this._timeSince(value);
