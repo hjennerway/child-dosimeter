@@ -154,7 +154,7 @@ class ChildDosageCard extends HTMLElement {
           </div>
         </div>
         ${consultWarning ? "" : `<div class="actions">
-          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${this._escape(medicine)}" data-dose-mg="${this._escape(doseSize.mg)}">Record ${this._escape(label)}</button>` : ""}
+          ${this.config.show_dose_button ? `<button class="dose ${this._doseButtonClass(a.last_dose_at)}" data-dose="${this._escape(medicine)}" data-dose-mg="${this._escape(doseSize.mg)}" data-last-dose-at="${this._escape(a.last_dose_at || "")}">Record ${this._escape(label)}</button>` : ""}
           ${this.config.show_reset_button ? `<button class="reset" data-reset="${this._escape(medicine)}">Reset</button>` : ""}
         </div>`}
       </div>`;
@@ -163,9 +163,20 @@ class ChildDosageCard extends HTMLElement {
   async _giveDose(medicine, button) {
     const childId = this._childId();
     if (!childId) return;
+    if (!this._doseIntervalConfirmation(button.dataset.lastDoseAt)) return;
     button.disabled = true;
-    try { await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine, dose_mg: Number(button.dataset.doseMg) }); }
+    try {
+      await this._hass.callService("child_medication_dosage", "give_dose", { child_id: childId, medicine, dose_mg: Number(button.dataset.doseMg) });
+      button.dataset.lastDoseAt = new Date().toISOString();
+    }
     finally { button.disabled = false; }
+  }
+
+  _doseIntervalConfirmation(lastDoseAt) {
+    if (!lastDoseAt) return true;
+    const ms = Date.now() - new Date(lastDoseAt).getTime();
+    if (Number.isNaN(ms) || ms >= 4 * 60 * 60 * 1000) return true;
+    return window.confirm(`The last dose was ${this._relativeTimeLabel(lastDoseAt)}. Record another dose anyway?`);
   }
 
   async _resetDose(medicine, button) {

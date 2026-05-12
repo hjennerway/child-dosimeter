@@ -53,6 +53,97 @@ class FrontendCardTests(unittest.TestCase):
 
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
 
+    @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
+    def test_dose_interval_confirmation_prompts_immediately_after_dose(self) -> None:
+        """The repeat-dose prompt appears even when the last dose was just recorded."""
+
+        script = textwrap.dedent(
+            f"""
+            const registry = {{}};
+            global.HTMLElement = class {{
+              attachShadow() {{
+                return {{
+                  innerHTML: "",
+                  querySelector() {{ return {{}}; }},
+                  querySelectorAll() {{ return []; }},
+                }};
+              }}
+            }};
+            global.customElements = {{
+              define: (name, cls) => {{ registry[name] = cls; }},
+            }};
+            let confirmMessage = null;
+            global.window = {{
+              customCards: [],
+              confirm: (message) => {{
+                confirmMessage = message;
+                return false;
+              }},
+            }};
+            require({str(CARD_PATH)!r});
+
+            const originalNow = Date.now;
+            Date.now = () => new Date("2026-05-12T10:00:00Z").getTime();
+            try {{
+              const card = new registry["child-dosage-card"]();
+              card.setConfig({{ child_id: "child" }});
+              const allowed = card._doseIntervalConfirmation("2026-05-12T10:00:00Z");
+
+              if (allowed !== false) {{
+                throw new Error("Expected confirmation result to block the dose when confirm returns false");
+              }}
+              if (!confirmMessage || !confirmMessage.includes("Record another dose anyway?")) {{
+                throw new Error(`Expected immediate repeat-dose confirmation, got ${{confirmMessage}}`);
+              }}
+            }} finally {{
+              Date.now = originalNow;
+            }}
+            """
+        )
+
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
+
+    @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
+    def test_dose_button_carries_last_dose_timestamp(self) -> None:
+        """The click handler can evaluate the interval without waiting for a rerender."""
+
+        script = textwrap.dedent(
+            f"""
+            const registry = {{}};
+            global.HTMLElement = class {{
+              attachShadow() {{
+                return {{
+                  innerHTML: "",
+                  querySelector() {{ return {{}}; }},
+                  querySelectorAll() {{ return []; }},
+                }};
+              }}
+            }};
+            global.customElements = {{
+              define: (name, cls) => {{ registry[name] = cls; }},
+            }};
+            global.window = {{ customCards: [] }};
+            require({str(CARD_PATH)!r});
+
+            const card = new registry["child-dosage-card"]();
+            card.setConfig({{ child_id: "child" }});
+            const html = card._medicineTemplate("paracetamol", {{
+              state: {{
+                attributes: {{
+                  medicine: "paracetamol",
+                  last_dose_at: "2026-05-12T10:00:00Z",
+                }},
+              }},
+            }});
+
+            if (!html.includes('data-last-dose-at="2026-05-12T10:00:00Z"')) {{
+              throw new Error(`Expected dose button to include last dose timestamp, got ${{html}}`);
+            }}
+            """
+        )
+
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
+
 
 if __name__ == "__main__":
     unittest.main()
