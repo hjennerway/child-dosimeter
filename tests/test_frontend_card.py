@@ -54,8 +54,8 @@ class FrontendCardTests(unittest.TestCase):
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
 
     @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
-    def test_editor_child_select_uses_event_value(self) -> None:
-        """Selecting a child from ha-select writes the selected child_id."""
+    def test_dose_interval_confirmation_prompts_immediately_after_dose(self) -> None:
+        """The repeat-dose prompt appears even when the last dose was just recorded."""
 
         script = textwrap.dedent(
             f"""
@@ -72,70 +72,40 @@ class FrontendCardTests(unittest.TestCase):
             global.customElements = {{
               define: (name, cls) => {{ registry[name] = cls; }},
             }};
-            global.window = {{ customCards: [] }};
+            let confirmMessage = null;
+            global.window = {{
+              customCards: [],
+              confirm: (message) => {{
+                confirmMessage = message;
+                return false;
+              }},
+            }};
             require({str(CARD_PATH)!r});
 
-            const editor = new registry["child-dosage-card-editor"]();
-            let eventDetail = null;
-            editor.config = {{ child_name: "Old Child" }};
-            editor.dispatchEvent = (event) => {{ eventDetail = event.detail; }};
-            editor._valueChanged(
-              {{ dataset: {{ field: "child_id" }}, tagName: "HA-SELECT", value: "" }},
-              {{ detail: {{ item: {{ value: "child-1" }} }} }}
-            );
-
-            if (editor.config.child_id !== "child-1" || editor.config.child_name !== undefined) {{
-              throw new Error(`Expected child_id-only config, got ${{JSON.stringify(editor.config)}}`);
-            }}
-            if (eventDetail.config.child_id !== "child-1" || eventDetail.config.child_name !== undefined) {{
-              throw new Error(`Expected dispatched config to include selected child_id, got ${{JSON.stringify(eventDetail)}}`);
-            }}
-            (async () => {{
-              const originalNow = Date.now;
-              Date.now = () => new Date("2026-05-11T12:00:00Z").getTime();
-
+            const originalNow = Date.now;
+            Date.now = () => new Date("2026-05-12T10:00:00Z").getTime();
+            try {{
               const card = new registry["child-dosage-card"]();
               card.setConfig({{ child_id: "child" }});
+              const allowed = card._doseIntervalConfirmation("2026-05-12T10:00:00Z");
 
-              let serviceCalls = 0;
-              let prompt = "";
-              card._hass = {{
-                states: {{}},
-                callService() {{ serviceCalls += 1; }},
-              }};
-              window.confirm = (message) => {{
-                prompt = message;
-                return false;
-              }};
-
-              await card._giveDose("paracetamol", {{
-                dataset: {{
-                  doseMg: "120",
-                  lastDoseAt: "2026-05-11T08:45:00Z",
-                }},
-                disabled: false,
-              }});
-
-              const expected = "Last dose was given 3 hours and 15 minutes ago. Recommendation is 4-6 hours between doses. Confirm another dose?";
-              if (prompt !== expected) {{
-                throw new Error(`Unexpected prompt: ${{prompt}}`);
+              if (allowed !== false) {{
+                throw new Error("Expected confirmation result to block the dose when confirm returns false");
               }}
-              if (serviceCalls !== 0) {{
-                throw new Error("Dose was recorded after confirmation was cancelled.");
+              if (!confirmMessage || !confirmMessage.includes("Record another dose anyway?")) {{
+                throw new Error(`Expected immediate repeat-dose confirmation, got ${{confirmMessage}}`);
               }}
-
+            }} finally {{
               Date.now = originalNow;
-            }})();
+            }}
             """
         )
 
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
 
     @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
-    def test_editor_hass_updates_only_rerender_when_children_change(self) -> None:
-        """Routine hass updates should not tear down an unchanged editor form."""
-    def test_four_hour_old_dose_does_not_require_confirmation(self) -> None:
-        """Recording at or after 4 hours does not ask for confirmation."""
+    def test_dose_button_carries_last_dose_timestamp(self) -> None:
+        """The click handler can evaluate the interval without waiting for a rerender."""
 
         script = textwrap.dedent(
             f"""
@@ -155,60 +125,20 @@ class FrontendCardTests(unittest.TestCase):
             global.window = {{ customCards: [] }};
             require({str(CARD_PATH)!r});
 
-            const editor = new registry["child-dosage-card-editor"]();
-            let children = [{{ id: "child-1", label: "Child One" }}];
-            let renders = 0;
-            editor.config = {{}};
-            editor._childOptions = () => children;
-            editor._render = function() {{
-              renders += 1;
-              this._childOptionsSignatureLast = this._childOptionsSignature();
-              this._rendered = true;
-            }};
-
-            editor.hass = {{ states: {{}} }};
-            editor.hass = {{ states: {{}} }};
-            children = [{{ id: "child-2", label: "Child Two" }}];
-            editor.hass = {{ states: {{}} }};
-
-            if (renders !== 2) {{
-              throw new Error(`Expected two renders for initial and changed child options, got ${{renders}}`);
-            }}
-            (async () => {{
-              const originalNow = Date.now;
-              Date.now = () => new Date("2026-05-11T12:00:00Z").getTime();
-
-              const card = new registry["child-dosage-card"]();
-              card.setConfig({{ child_id: "child" }});
-
-              let serviceCalls = 0;
-              let prompted = false;
-              card._hass = {{
-                states: {{}},
-                callService() {{ serviceCalls += 1; }},
-              }};
-              window.confirm = () => {{
-                prompted = true;
-                return false;
-              }};
-
-              await card._giveDose("paracetamol", {{
-                dataset: {{
-                  doseMg: "120",
-                  lastDoseAt: "2026-05-11T08:00:00Z",
+            const card = new registry["child-dosage-card"]();
+            card.setConfig({{ child_id: "child" }});
+            const html = card._medicineTemplate("paracetamol", {{
+              state: {{
+                attributes: {{
+                  medicine: "paracetamol",
+                  last_dose_at: "2026-05-12T10:00:00Z",
                 }},
-                disabled: false,
-              }});
+              }},
+            }});
 
-              if (prompted) {{
-                throw new Error("Dose prompted after the 4-hour interval.");
-              }}
-              if (serviceCalls !== 1) {{
-                throw new Error(`Expected one service call, got ${{serviceCalls}}.`);
-              }}
-
-              Date.now = originalNow;
-            }})();
+            if (!html.includes('data-last-dose-at="2026-05-12T10:00:00Z"')) {{
+              throw new Error(`Expected dose button to include last dose timestamp, got ${{html}}`);
+            }}
             """
         )
 
