@@ -27,6 +27,12 @@ class DoseRule:
     consult_warning: str | None = None
 
 
+WEIGHT_STALE_WARNING = (
+    "Update child's weight before giving medicine; "
+    "weight has not been updated in 3 months"
+)
+
+
 def age_months(date_of_birth: date, today: date | None = None) -> int:
     """Return whole age in months."""
 
@@ -35,6 +41,29 @@ def age_months(date_of_birth: date, today: date | None = None) -> int:
     if today.day < date_of_birth.day:
         months -= 1
     return max(0, months)
+
+
+def weight_stale_warning(
+    weight_updated_at: date | datetime | str | None,
+    now: datetime | None = None,
+) -> str | None:
+    """Return a consult warning if the child's weight is more than 3 months old."""
+
+    if not weight_updated_at:
+        return WEIGHT_STALE_WARNING
+    if isinstance(weight_updated_at, datetime):
+        updated = weight_updated_at.date()
+    elif isinstance(weight_updated_at, date):
+        updated = weight_updated_at
+    else:
+        try:
+            updated = date.fromisoformat(str(weight_updated_at))
+        except ValueError:
+            return WEIGHT_STALE_WARNING
+    today = (now or datetime.now()).date()
+    if age_months(updated, today) >= 3:
+        return WEIGHT_STALE_WARNING
+    return None
 
 
 def _paracetamol_rule(months_old: int) -> DoseRule:

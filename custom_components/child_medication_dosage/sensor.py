@@ -33,9 +33,10 @@ from .const import (
     CONF_CUSTOM_MEDICATIONS,
     CONF_DATE_OF_BIRTH,
     CONF_WEIGHT_KG,
+    CONF_WEIGHT_UPDATED_AT,
     DOMAIN,
 )
-from .dosing import recommended_rule
+from .dosing import recommended_rule, weight_stale_warning
 from .history import MedicationHistory
 
 
@@ -104,6 +105,10 @@ class MedicationDoseSensor(SensorEntity):
             now,
             self._child.get(CONF_CUSTOM_MEDICATIONS, []),
         )
+        consult_warning = rule.consult_warning or weight_stale_warning(
+            self._child.get(CONF_WEIGHT_UPDATED_AT),
+            now,
+        )
         events = self._history.events_for(self._child[ATTR_CHILD_ID], self._medicine, now)
         events_48h = self._history.events_for(
             self._child[ATTR_CHILD_ID],
@@ -131,8 +136,9 @@ class MedicationDoseSensor(SensorEntity):
                 for event in sorted(events_48h, key=lambda event: event.given_at, reverse=True)
             ],
             "rule_note": rule.note,
-            "consult_warning": rule.consult_warning,
+            "consult_warning": consult_warning,
             "weight_kg": self._child[CONF_WEIGHT_KG],
+            CONF_WEIGHT_UPDATED_AT: self._child.get(CONF_WEIGHT_UPDATED_AT),
         }
 
     async def async_added_to_hass(self) -> None:

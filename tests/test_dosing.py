@@ -37,6 +37,7 @@ def load_dosing_module():
 
 dosing = load_dosing_module()
 recommended_rule = dosing.recommended_rule
+weight_stale_warning = dosing.weight_stale_warning
 
 
 class DosingTests(unittest.TestCase):
@@ -98,6 +99,42 @@ class DosingTests(unittest.TestCase):
         self.assertEqual(
             rule.consult_warning,
             "Consult a doctor if child is less than 5kg",
+        )
+
+    def test_weight_stale_warning_after_three_months(self) -> None:
+        """A weight update older than 3 months asks for a fresh weight."""
+
+        warning = weight_stale_warning(
+            date(2026, 2, 10),
+            datetime(2026, 5, 10, tzinfo=UTC),
+        )
+
+        self.assertEqual(
+            warning,
+            "Update child's weight before giving medicine; weight has not been updated in 3 months",
+        )
+
+    def test_weight_stale_warning_not_shown_before_three_months(self) -> None:
+        """Recent weight updates do not trigger the warning."""
+
+        warning = weight_stale_warning(
+            date(2026, 2, 11),
+            datetime(2026, 5, 10, tzinfo=UTC),
+        )
+
+        self.assertIsNone(warning)
+
+    def test_weight_stale_warning_when_update_date_missing(self) -> None:
+        """Missing weight update dates are treated as stale for existing entries."""
+
+        warning = weight_stale_warning(
+            None,
+            datetime(2026, 5, 10, tzinfo=UTC),
+        )
+
+        self.assertEqual(
+            warning,
+            "Update child's weight before giving medicine; weight has not been updated in 3 months",
         )
 
 
