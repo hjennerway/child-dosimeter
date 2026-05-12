@@ -53,6 +53,86 @@ class FrontendCardTests(unittest.TestCase):
 
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
 
+    @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
+    def test_editor_child_select_uses_event_value(self) -> None:
+        """Selecting a child from ha-select writes the selected child_id."""
+
+        script = textwrap.dedent(
+            f"""
+            const registry = {{}};
+            global.HTMLElement = class {{}};
+            global.CustomEvent = class {{
+              constructor(type, options) {{
+                this.type = type;
+                this.detail = options.detail;
+                this.bubbles = options.bubbles;
+                this.composed = options.composed;
+              }}
+            }};
+            global.customElements = {{
+              define: (name, cls) => {{ registry[name] = cls; }},
+            }};
+            global.window = {{ customCards: [] }};
+            require({str(CARD_PATH)!r});
+
+            const editor = new registry["child-dosage-card-editor"]();
+            let eventDetail = null;
+            editor.config = {{ child_name: "Old Child" }};
+            editor.dispatchEvent = (event) => {{ eventDetail = event.detail; }};
+            editor._valueChanged(
+              {{ dataset: {{ field: "child_id" }}, tagName: "HA-SELECT", value: "" }},
+              {{ detail: {{ item: {{ value: "child-1" }} }} }}
+            );
+
+            if (editor.config.child_id !== "child-1" || editor.config.child_name !== undefined) {{
+              throw new Error(`Expected child_id-only config, got ${{JSON.stringify(editor.config)}}`);
+            }}
+            if (eventDetail.config.child_id !== "child-1" || eventDetail.config.child_name !== undefined) {{
+              throw new Error(`Expected dispatched config to include selected child_id, got ${{JSON.stringify(eventDetail)}}`);
+            }}
+            """
+        )
+
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
+
+    @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
+    def test_editor_hass_updates_only_rerender_when_children_change(self) -> None:
+        """Routine hass updates should not tear down an unchanged editor form."""
+
+        script = textwrap.dedent(
+            f"""
+            const registry = {{}};
+            global.HTMLElement = class {{}};
+            global.customElements = {{
+              define: (name, cls) => {{ registry[name] = cls; }},
+            }};
+            global.window = {{ customCards: [] }};
+            require({str(CARD_PATH)!r});
+
+            const editor = new registry["child-dosage-card-editor"]();
+            let children = [{{ id: "child-1", label: "Child One" }}];
+            let renders = 0;
+            editor.config = {{}};
+            editor._childOptions = () => children;
+            editor._render = function() {{
+              renders += 1;
+              this._childOptionsSignatureLast = this._childOptionsSignature();
+              this._rendered = true;
+            }};
+
+            editor.hass = {{ states: {{}} }};
+            editor.hass = {{ states: {{}} }};
+            children = [{{ id: "child-2", label: "Child Two" }}];
+            editor.hass = {{ states: {{}} }};
+
+            if (renders !== 2) {{
+              throw new Error(`Expected two renders for initial and changed child options, got ${{renders}}`);
+            }}
+            """
+        )
+
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
+
 
 if __name__ == "__main__":
     unittest.main()

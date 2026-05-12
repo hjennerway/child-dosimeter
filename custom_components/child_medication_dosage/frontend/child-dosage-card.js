@@ -378,11 +378,16 @@ class ChildDosageCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    if (this.config) this._render();
+    if (!this.config) return;
+    const childOptionsSignature = this._childOptionsSignature();
+    if (!this._rendered || childOptionsSignature !== this._childOptionsSignatureLast) {
+      this._render();
+    }
   }
 
   _render() {
     const childOptions = this._childOptions();
+    this._childOptionsSignatureLast = this._childOptionsSignature(childOptions);
     this._root.innerHTML = `
       <style>
         .editor { display: grid; gap: 16px; }
@@ -438,18 +443,20 @@ class ChildDosageCardEditor extends HTMLElement {
       </div>
     `;
 
+    this._syncFieldValues();
     this._root.querySelectorAll("ha-textfield").forEach((field) => {
-      field.addEventListener("input", () => this._valueChanged(field));
-      field.addEventListener("change", () => this._valueChanged(field));
+      field.addEventListener("input", (event) => this._valueChanged(field, event));
+      field.addEventListener("change", (event) => this._valueChanged(field, event));
     });
     this._root.querySelectorAll("ha-select").forEach((field) => {
-      field.addEventListener("selected", () => this._valueChanged(field));
-      field.addEventListener("closed", () => this._valueChanged(field));
-      field.addEventListener("change", () => this._valueChanged(field));
+      field.addEventListener("selected", (event) => this._valueChanged(field, event));
+      field.addEventListener("value-changed", (event) => this._valueChanged(field, event));
+      field.addEventListener("change", (event) => this._valueChanged(field, event));
     });
     this._root.querySelectorAll("ha-switch").forEach((field) => {
-      field.addEventListener("change", () => this._valueChanged(field));
+      field.addEventListener("change", (event) => this._valueChanged(field, event));
     });
+    this._rendered = true;
   }
 
   _toggleTemplate(field, label) {
@@ -465,12 +472,27 @@ class ChildDosageCardEditor extends HTMLElement {
     return options.map((option) => `<mwc-list-item value="${this._escape(option)}">${this._escape(option)}</mwc-list-item>`).join("");
   }
 
-  _valueChanged(element) {
+  _syncFieldValues() {
+    this._root.querySelectorAll("[data-field]").forEach((element) => {
+      const field = element.dataset.field;
+      if (!field) return;
+      if (element.tagName === "HA-SWITCH") {
+        element.checked = Boolean(this.config[field]);
+        return;
+      }
+      element.value = field === "custom_medications"
+        ? this._customMedicationsValue()
+        : this.config[field] || "";
+    });
+  }
+
+  _valueChanged(element, event) {
     const field = element.dataset.field;
     if (!field) return;
     let value = element.checked;
     if (element.tagName !== "HA-SWITCH") {
-      value = element.value;
+      value = event?.detail?.value ?? event?.detail?.item?.value ?? element.value;
+      if (value === undefined) return;
     }
     if (field === "custom_medications") {
       value = String(value || "").split(",").map((name) => name.trim()).filter(Boolean);
@@ -500,6 +522,10 @@ class ChildDosageCardEditor extends HTMLElement {
       children.set(attrs.child_id, { id: attrs.child_id, label });
     }
     return [...children.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  _childOptionsSignature(childOptions = this._childOptions()) {
+    return JSON.stringify(childOptions);
   }
 
   _escape(value) {
