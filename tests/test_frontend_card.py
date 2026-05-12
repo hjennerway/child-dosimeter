@@ -92,7 +92,7 @@ class FrontendCardTests(unittest.TestCase):
               if (allowed !== false) {{
                 throw new Error("Expected confirmation result to block the dose when confirm returns false");
               }}
-              if (!confirmMessage || !confirmMessage.includes("Record another dose anyway?")) {{
+              if (!confirmMessage || !confirmMessage.includes("Confirm another dose?")) {{
                 throw new Error(`Expected immediate repeat-dose confirmation, got ${{confirmMessage}}`);
               }}
             }} finally {{
@@ -139,6 +139,65 @@ class FrontendCardTests(unittest.TestCase):
             if (!html.includes('data-last-dose-at="2026-05-12T10:00:00Z"')) {{
               throw new Error(`Expected dose button to include last dose timestamp, got ${{html}}`);
             }}
+            """
+        )
+
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
+
+    @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
+    def test_give_dose_calls_service_when_interval_is_safe(self) -> None:
+        """A safe dose interval should not be blocked by the confirmation helper."""
+
+        script = textwrap.dedent(
+            f"""
+            const registry = {{}};
+            global.HTMLElement = class {{
+              attachShadow() {{
+                return {{
+                  innerHTML: "",
+                  querySelector() {{ return {{}}; }},
+                  querySelectorAll() {{ return []; }},
+                }};
+              }}
+            }};
+            global.customElements = {{
+              define: (name, cls) => {{ registry[name] = cls; }},
+            }};
+            global.window = {{ customCards: [] }};
+            require({str(CARD_PATH)!r});
+
+            (async () => {{
+              const originalNow = Date.now;
+              Date.now = () => new Date("2026-05-12T10:00:00Z").getTime();
+              try {{
+              const card = new registry["child-dosage-card"]();
+              card.setConfig({{ child_id: "child" }});
+              let call = null;
+              card._hass = {{
+                callService: async (domain, service, data) => {{
+                  call = {{ domain, service, data }};
+                }},
+              }};
+              const button = {{
+                dataset: {{
+                  doseMg: "120",
+                  lastDoseAt: "2026-05-12T05:00:00Z",
+                }},
+                disabled: false,
+              }};
+
+              await card._giveDose("paracetamol", button);
+
+              if (!call || call.domain !== "child_medication_dosage" || call.service !== "give_dose") {{
+                throw new Error(`Expected give_dose service call, got ${{JSON.stringify(call)}}`);
+              }}
+              if (button.disabled) {{
+                throw new Error("Expected button to be re-enabled after dose service call");
+              }}
+              }} finally {{
+                Date.now = originalNow;
+              }}
+            }})();
             """
         )
 

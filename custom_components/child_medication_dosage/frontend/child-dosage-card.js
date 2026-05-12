@@ -191,13 +191,6 @@ class ChildDosageCard extends HTMLElement {
     finally { button.disabled = false; }
   }
 
-  _doseIntervalConfirmation(lastDoseAt) {
-    if (!lastDoseAt) return true;
-    const ms = Date.now() - new Date(lastDoseAt).getTime();
-    if (Number.isNaN(ms) || ms >= 4 * 60 * 60 * 1000) return true;
-    return window.confirm(`The last dose was ${this._relativeTimeLabel(lastDoseAt)}. Record another dose anyway?`);
-  }
-
   async _resetDose(medicine, button) {
     const childId = this._childId();
     if (!childId) return;
@@ -311,15 +304,15 @@ class ChildDosageCard extends HTMLElement {
     return ms >= 4 * 60 * 60 * 1000 ? "ready" : "soon";
   }
   _doseIntervalConfirmation(value) {
-    if (!value) return "";
+    if (!value) return true;
     const ms = Date.now() - new Date(value).getTime();
-    if (Number.isNaN(ms) || ms < 0 || ms >= 4 * 60 * 60 * 1000) return "";
+    if (Number.isNaN(ms) || ms >= 4 * 60 * 60 * 1000) return true;
     const totalMinutes = Math.floor(ms / 60000);
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     const hourLabel = `${hours} ${hours === 1 ? "hour" : "hours"}`;
     const minuteLabel = `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
-    return `Last dose was given ${hourLabel} and ${minuteLabel} ago. Recommendation is 4-6 hours between doses. Confirm another dose?`;
+    return window.confirm(`Last dose was given ${hourLabel} and ${minuteLabel} ago. Recommendation is 4-6 hours between doses. Confirm another dose?`);
   }
   _relativeTimeLabel(value) {
     const timeSince = this._timeSince(value);
