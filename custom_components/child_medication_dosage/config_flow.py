@@ -32,6 +32,7 @@ from .const import (
 FIELD_ADD_ANOTHER_CUSTOM_MEDICATION = "add_another_custom_medication"
 FIELD_CHILD_ACTION = "child_action"
 FIELD_CONFIGURE_CUSTOM_MEDICATIONS = "configure_custom_medications"
+FIELD_REMOVE_CUSTOM_MEDICATION = "remove_custom_medication"
 VALUE_ADD_CHILD = "__add_child__"
 
 
@@ -85,53 +86,62 @@ def _child_action_schema(children: list[dict[str, Any]]) -> vol.Schema:
 
 def _custom_medication_schema(
     defaults: dict[str, Any] | None = None,
+    allow_remove: bool = False,
 ) -> vol.Schema:
     """Return the custom medication form schema."""
 
     defaults = defaults or {}
-    return vol.Schema(
-        {
-            vol.Required(
-                CONF_MEDICINE_NAME, default=defaults.get(CONF_MEDICINE_NAME, "")
-            ): selector.TextSelector(),
-            vol.Required(
-                CONF_MAX_DOSES_24H, default=defaults.get(CONF_MAX_DOSES_24H, 4)
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=1,
-                    max=24,
-                    mode=selector.NumberSelectorMode.BOX,
-                    step=1,
-                )
-            ),
-            vol.Required(
-                CONF_MAX_24H_MG, default=defaults.get(CONF_MAX_24H_MG, 0)
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=5000,
-                    mode=selector.NumberSelectorMode.BOX,
-                    step=0.1,
-                    unit_of_measurement="mg",
-                )
-            ),
-            vol.Required(
-                CONF_DOSE_MG, default=defaults.get(CONF_DOSE_MG, 0)
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=0,
-                    max=5000,
-                    mode=selector.NumberSelectorMode.BOX,
-                    step=0.1,
-                    unit_of_measurement="mg",
-                )
-            ),
+    fields = {
+        vol.Required(
+            CONF_MEDICINE_NAME, default=defaults.get(CONF_MEDICINE_NAME, "")
+        ): selector.TextSelector(),
+        vol.Required(
+            CONF_MAX_DOSES_24H, default=defaults.get(CONF_MAX_DOSES_24H, 4)
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=1,
+                max=24,
+                mode=selector.NumberSelectorMode.BOX,
+                step=1,
+            )
+        ),
+        vol.Required(
+            CONF_MAX_24H_MG, default=defaults.get(CONF_MAX_24H_MG, 0)
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=5000,
+                mode=selector.NumberSelectorMode.BOX,
+                step=0.1,
+                unit_of_measurement="mg",
+            )
+        ),
+        vol.Required(
+            CONF_DOSE_MG, default=defaults.get(CONF_DOSE_MG, 0)
+        ): selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=0,
+                max=5000,
+                mode=selector.NumberSelectorMode.BOX,
+                step=0.1,
+                unit_of_measurement="mg",
+            )
+        ),
+    }
+    if allow_remove:
+        fields[
             vol.Optional(
-                FIELD_ADD_ANOTHER_CUSTOM_MEDICATION,
-                default=defaults.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION, False),
-            ): selector.BooleanSelector(),
-        }
-    )
+                FIELD_REMOVE_CUSTOM_MEDICATION,
+                default=defaults.get(FIELD_REMOVE_CUSTOM_MEDICATION, False),
+            )
+        ] = selector.BooleanSelector()
+    fields[
+        vol.Optional(
+            FIELD_ADD_ANOTHER_CUSTOM_MEDICATION,
+            default=defaults.get(FIELD_ADD_ANOTHER_CUSTOM_MEDICATION, False),
+        )
+    ] = selector.BooleanSelector()
+    return vol.Schema(fields)
 
 
 def _date_string(value: Any) -> str:
@@ -385,11 +395,14 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
-                self._custom_medications.append(
-                    _custom_medication_from_input(
-                        user_input, self._custom_medications
+                if not self._editing_existing_custom_medication() or not user_input.get(
+                    FIELD_REMOVE_CUSTOM_MEDICATION
+                ):
+                    self._custom_medications.append(
+                        _custom_medication_from_input(
+                            user_input, self._custom_medications
+                        )
                     )
-                )
             except (TypeError, ValueError, vol.Invalid):
                 errors["base"] = "invalid_custom_medication"
             else:
@@ -403,7 +416,8 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="custom_medication",
             data_schema=_custom_medication_schema(
-                user_input or self._current_custom_medication_defaults()
+                user_input or self._current_custom_medication_defaults(),
+                allow_remove=self._editing_existing_custom_medication(),
             ),
             errors=errors,
         )
@@ -440,3 +454,8 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
         if self._custom_medication_index >= len(self._custom_medication_defaults):
             return {}
         return self._custom_medication_defaults[self._custom_medication_index]
+
+    def _editing_existing_custom_medication(self) -> bool:
+        """Return whether the current custom medication step edits saved data."""
+
+        return self._custom_medication_index < len(self._custom_medication_defaults)
