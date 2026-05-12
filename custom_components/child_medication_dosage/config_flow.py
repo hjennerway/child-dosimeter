@@ -23,6 +23,7 @@ from .const import (
     CONF_MAX_DOSES_24H,
     CONF_MEDICINE_NAME,
     CONF_WEIGHT_KG,
+    CONF_WEIGHT_UPDATED_AT,
     DOMAIN,
     MEDICINE_IBUPROFEN,
     MEDICINE_PARACETAMOL,
@@ -149,6 +150,7 @@ def _child_from_input(user_input: dict[str, Any]) -> dict[str, Any]:
         CONF_CHILD_NAME: user_input[CONF_CHILD_NAME].strip(),
         CONF_DATE_OF_BIRTH: _date_string(user_input[CONF_DATE_OF_BIRTH]),
         CONF_WEIGHT_KG: float(user_input[CONF_WEIGHT_KG]),
+        CONF_WEIGHT_UPDATED_AT: date.today().isoformat(),
         CONF_CUSTOM_MEDICATIONS: [],
     }
 
@@ -169,13 +171,23 @@ def _child_defaults(child: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def _child_from_input_with_id(
-    user_input: dict[str, Any], child_id: str | None = None
+    user_input: dict[str, Any],
+    child_id: str | None = None,
+    existing_child: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build stored child data from form input, preserving an existing id."""
 
     child = _child_from_input(user_input)
     if child_id:
         child[ATTR_CHILD_ID] = child_id
+    if (
+        existing_child
+        and float(existing_child.get(CONF_WEIGHT_KG, 0)) == child[CONF_WEIGHT_KG]
+    ):
+        child[CONF_WEIGHT_UPDATED_AT] = existing_child.get(
+            CONF_WEIGHT_UPDATED_AT,
+            child[CONF_WEIGHT_UPDATED_AT],
+        )
     return child
 
 
@@ -346,6 +358,7 @@ class ChildMedicationDosageOptionsFlow(config_entries.OptionsFlow):
                 self._pending_child = _child_from_input_with_id(
                     user_input,
                     existing_child.get(ATTR_CHILD_ID) if existing_child else None,
+                    existing_child,
                 )
                 self._custom_medications = []
                 self._custom_medication_defaults = list(
