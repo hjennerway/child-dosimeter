@@ -20,6 +20,7 @@
           "max_doses_24h": "Max doses in 24h",
           "max_24h_mg": "Max amount in 24h (mg)",
           "dose_mg": "Dose size (mg)",
+          "remove_custom_medication": "Remove this custom medication",
           "add_another_custom_medication": "Add another custom medication"
         }
       }
@@ -49,13 +50,14 @@
         }
       },
       "custom_medication": {
-        "title": "Add custom medication",
-        "description": "Add one custom medication. Use max amount for the total allowed in 24 hours.",
+        "title": "Edit custom medication",
+        "description": "Update or remove this custom medication. Use max amount for the total allowed in 24 hours.",
         "data": {
           "name": "Medicine name",
           "max_doses_24h": "Max doses in 24h",
           "max_24h_mg": "Max amount in 24h (mg)",
           "dose_mg": "Dose size (mg)",
+          "remove_custom_medication": "Remove this custom medication",
           "add_another_custom_medication": "Add another custom medication"
         }
       }
