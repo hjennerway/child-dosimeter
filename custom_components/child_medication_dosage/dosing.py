@@ -50,7 +50,7 @@ def weight_stale_warning(
     """Return a consult warning if the child's weight is more than 3 months old."""
 
     if not weight_updated_at:
-        return WEIGHT_STALE_WARNING
+        return None
     if isinstance(weight_updated_at, datetime):
         updated = weight_updated_at.date()
     elif isinstance(weight_updated_at, date):
