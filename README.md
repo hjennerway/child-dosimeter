@@ -16,8 +16,8 @@ conditions, or medicines with overlapping ingredients.
 ## Features
  - Tracking of 24 hour dosage of paracetamol/ibuprofen based on child age and weight
  - Tracking custom doses based on dose size, max doses in 24h and size of each dose
- - Visual guage of how much they've had
- - Log of doses administered when tapping the bar guage
+ - Visual gauge of how much they've had
+ - Log of doses administered when tapping the bar gauge
 
 ## Setup
 1. Go to **Settings > Devices & services > Add integration**.
