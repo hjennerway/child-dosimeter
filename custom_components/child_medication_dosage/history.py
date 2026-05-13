@@ -11,6 +11,8 @@ from homeassistant.helpers.storage import Store
 
 from .const import ATTR_DOSE_MG, ATTR_GIVEN_AT, ATTR_MEDICINE, STORAGE_KEY, STORAGE_VERSION
 
+MERGE_DOSE_WINDOW = timedelta(minutes=2)
+
 
 @dataclass(frozen=True)
 class DoseEvent:
@@ -70,6 +72,19 @@ class MedicationHistory:
 
         if given_at.tzinfo is None:
             given_at = given_at.replace(tzinfo=UTC)
+        last = self.last_event(child_id, medicine)
+        if last:
+            elapsed = given_at - last.given_at
+            if timedelta(0) <= elapsed < MERGE_DOSE_WINDOW:
+                event = DoseEvent(
+                    child_id,
+                    medicine,
+                    last.dose_mg + dose_mg,
+                    given_at,
+                )
+                self._events[self._events.index(last)] = event
+                await self._async_prune_and_save()
+                return event
         event = DoseEvent(child_id, medicine, dose_mg, given_at)
         self._events.append(event)
         await self._async_prune_and_save()

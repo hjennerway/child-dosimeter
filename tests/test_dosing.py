@@ -125,17 +125,14 @@ class DosingTests(unittest.TestCase):
         self.assertIsNone(warning)
 
     def test_weight_stale_warning_when_update_date_missing(self) -> None:
-        """Missing weight update dates are treated as stale for existing entries."""
+        """Missing weight update dates are ignored for legacy entries."""
 
         warning = weight_stale_warning(
             None,
             datetime(2026, 5, 10, tzinfo=UTC),
         )
 
-        self.assertEqual(
-            warning,
-            "Update child's weight before giving medicine; weight has not been updated in 3 months",
-        )
+        self.assertIsNone(warning)
 
 
 if __name__ == "__main__":

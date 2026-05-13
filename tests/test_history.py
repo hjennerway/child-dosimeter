@@ -162,6 +162,71 @@ class MedicationHistoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(removed)
         self.assertEqual(self.history._events, original)
 
+    async def test_async_add_merges_with_previous_dose_inside_two_minutes(self) -> None:
+        """Quick repeat clicks increase amount without adding a dose count."""
+
+        self.history._events = [DoseEvent("child-1", "paracetamol", 120, self.now)]
+
+        event = await self.history.async_add(
+            "child-1",
+            "paracetamol",
+            60,
+            self.now + timedelta(minutes=1, seconds=59),
+        )
+
+        events = self.history.events_for(
+            "child-1",
+            "paracetamol",
+            self.now + timedelta(minutes=2),
+        )
+        self.assertEqual(len(events), 1)
+        self.assertEqual(event.dose_mg, 180)
+        self.assertEqual(events[0].dose_mg, 180)
+        self.assertEqual(
+            events[0].given_at,
+            self.now + timedelta(minutes=1, seconds=59),
+        )
+
+    async def test_async_add_creates_new_dose_at_two_minutes(self) -> None:
+        """The merge window is strictly less than two minutes."""
+
+        self.history._events = [DoseEvent("child-1", "paracetamol", 120, self.now)]
+
+        await self.history.async_add(
+            "child-1",
+            "paracetamol",
+            60,
+            self.now + timedelta(minutes=2),
+        )
+
+        events = self.history.events_for(
+            "child-1",
+            "paracetamol",
+            self.now + timedelta(minutes=2),
+        )
+        self.assertEqual(len(events), 2)
+        self.assertEqual(sum(event.dose_mg for event in events), 180)
+
+    async def test_async_add_only_merges_same_child_and_medicine(self) -> None:
+        """Quick doses for another child or medicine stay separate."""
+
+        self.history._events = [DoseEvent("child-1", "paracetamol", 120, self.now)]
+
+        await self.history.async_add(
+            "child-1",
+            "ibuprofen",
+            60,
+            self.now + timedelta(minutes=1),
+        )
+        await self.history.async_add(
+            "child-2",
+            "paracetamol",
+            60,
+            self.now + timedelta(minutes=1),
+        )
+
+        self.assertEqual(len(self.history._events), 3)
+
 
 if __name__ == "__main__":
     unittest.main()
