@@ -60,13 +60,13 @@ class FrontendCardTests(unittest.TestCase):
         script = textwrap.dedent(
             f"""
             const registry = {{}};
-            global.HTMLElement = class {{
-              attachShadow() {{
-                return {{
-                  innerHTML: "",
-                  querySelector() {{ return {{}}; }},
-                  querySelectorAll() {{ return []; }},
-                }};
+            global.HTMLElement = class {{}};
+            global.CustomEvent = class {{
+              constructor(type, options) {{
+                this.type = type;
+                this.detail = options.detail;
+                this.bubbles = options.bubbles;
+                this.composed = options.composed;
               }}
             }};
             global.customElements = {{
