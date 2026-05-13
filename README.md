@@ -14,7 +14,7 @@ conditions, or medicines with overlapping ingredients.
  - Not sure if your partner gave some medicine in the night and wondering if you can give more?
 
 ## Features
- - Tracking of 24 hour dosage of paracetemol/ibuprofen based on child age and weight
+ - Tracking of 24 hour dosage of paracetamol/ibuprofen based on child age and weight
  - Tracking custom doses based on dose size, max doses in 24h and size of each dose
  - Visual guage of how much they've had
  - Log of doses administered when tapping the bar guage
@@ -64,7 +64,7 @@ child_name: Child Name
 
 ## Dosage
 
-When you give the child paracetemol/ibuprofen, tab the green button. If the button turns orange, it's because the last dose was given less than 4 hours ago
+When you give the child paracetamol/ibuprofen, tab the green button. If the button turns orange, it's because the last dose was given less than 4 hours ago
 
 The dose rules are based on:
 
