@@ -22,12 +22,44 @@ class ChildDosageCard extends HTMLElement {
     };
   }
 
+  static getBooleanConfigFields() {
+    return [
+      "show_paracetamol",
+      "show_ibuprofen",
+      "show_last_dose_time",
+      "show_time_since_last_dose",
+      "show_amount_in_last24h",
+      "show_dose_button",
+      "show_reset_button",
+      "show_child_name",
+      "show_child_age_weight",
+    ];
+  }
+
+  static normalizeBooleanConfig(config) {
+    const normalized = { ...config };
+    for (const field of ChildDosageCard.getBooleanConfigFields()) {
+      normalized[field] = ChildDosageCard.coerceBoolean(normalized[field]);
+    }
+    return normalized;
+  }
+
+  static coerceBoolean(value) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (["false", "0", "no", "off"].includes(normalized)) return false;
+      if (["true", "1", "yes", "on"].includes(normalized)) return true;
+    }
+    return Boolean(value);
+  }
+
   setConfig(config) {
     if (!config.child_id && !config.child_name) {
       throw new Error("child_id or child_name is required");
     }
 
-    this.config = {
+    this.config = ChildDosageCard.normalizeBooleanConfig({
       title: "Medication dosage",
       show_paracetamol: true,
       show_ibuprofen: true,
@@ -42,7 +74,7 @@ class ChildDosageCard extends HTMLElement {
       paracetamol_dose_size: "auto",
       ibuprofen_dose_size: "auto",
       ...config,
-    };
+    });
     this._root = this.attachShadow({ mode: "open" });
     this._root.innerHTML = `
       <style>
@@ -412,10 +444,10 @@ class ChildDosageCard extends HTMLElement {
 
 class ChildDosageCardEditor extends HTMLElement {
   setConfig(config) {
-    this.config = {
+    this.config = ChildDosageCard.normalizeBooleanConfig({
       ...ChildDosageCard.getStubConfig(),
       ...config,
-    };
+    });
     if (!this._root) {
       this._root = this.attachShadow({ mode: "open" });
     }
