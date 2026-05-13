@@ -145,6 +145,64 @@ class FrontendCardTests(unittest.TestCase):
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
 
     @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
+    def test_show_child_age_weight_string_false_hides_header_line(self) -> None:
+        """String false values from card config should behave like boolean false."""
+
+        script = textwrap.dedent(
+            f"""
+            const registry = {{}};
+            const content = {{
+              innerHTML: "",
+              querySelectorAll() {{ return []; }},
+            }};
+            global.HTMLElement = class {{
+              attachShadow() {{
+                return {{
+                  innerHTML: "",
+                  querySelector(selector) {{
+                    return selector === ".content" ? content : {{}};
+                  }},
+                  querySelectorAll() {{ return []; }},
+                }};
+              }}
+            }};
+            global.customElements = {{
+              define: (name, cls) => {{ registry[name] = cls; }},
+            }};
+            global.window = {{ customCards: [] }};
+            require({str(CARD_PATH)!r});
+
+            const card = new registry["child-dosage-card"]();
+            card.setConfig({{
+              child_id: "child",
+              show_child_age_weight: "false",
+            }});
+            card.hass = {{
+              states: {{
+                "sensor.child_paracetamol": {{
+                  attributes: {{
+                    child_id: "child",
+                    child_name: "Child",
+                    medicine: "paracetamol",
+                    date_of_birth: "2020-01-01",
+                    weight_kg: 20,
+                  }},
+                }},
+              }},
+            }};
+
+            if (content.innerHTML.includes("Age:") || content.innerHTML.includes("Weight:")) {{
+              throw new Error(`Expected age and weight to be hidden, got ${{content.innerHTML}}`);
+            }}
+            if (!content.innerHTML.includes("Child")) {{
+              throw new Error(`Expected child name to remain visible, got ${{content.innerHTML}}`);
+            }}
+            """
+        )
+
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True)
+
+    @unittest.skipUnless(shutil.which("node"), "node is required for frontend tests")
     def test_give_dose_calls_service_when_interval_is_safe(self) -> None:
         """A safe dose interval should not be blocked by the confirmation helper."""
 

@@ -9,43 +9,17 @@ medicine suitability with the medicine label, pharmacist, GP, NHS 111, or your
 clinician, especially for children under 3 months, unusual weights, other
 conditions, or medicines with overlapping ingredients.
 
-## What It Does
+## Why
+ - Forget when you last gave your child medicine?
+ - Not sure if your partner gave some medicine in the night and wondering if you can give more?
 
-- Adds a child through the Home Assistant integrations UI with name, date of
-  birth, and weight.
-- Creates one sensor per child and medicine:
-  - paracetamol rolling 24-hour total
-  - ibuprofen rolling 24-hour total
-  - any configured custom medication rolling 24-hour total
-- Provides a `child_medication_dosage.give_dose` service.
-- Provides a dashboard card with:
-  - child name, age, and weight
-  - configurable medication rows
-  - last dose time and time since last dose for each medicine
-  - per-medicine record and reset buttons
-  - removal of individual recorded doses from the history popup
-  - administered/maximum 24-hour dose bars
+## Features
+ - Tracking of 24 hour dosage of paracetemol/ibuprofen based on child age and weight
+ - Tracking custom doses based on dose size, max doses in 24h and size of each dose
+ - Visual guage of how much they've had
+ - Log of doses administered when tapping the bar guage
 
-The dose rules are based on the supplied photo:
-
-- Paracetamol uses the age bands shown in the schedule and assumes up to four
-  doses in 24 hours.
-- Ibuprofen uses the weight table shown in the schedule and a maximum of
-  `30 mg/kg/day`, split into up to four doses.
-- When the photo shows dose ranges, the integration uses the lower value.
-
-## Install
-
-Copy the integration folder into your Home Assistant config directory:
-
-```text
-custom_components/child_medication_dosage
-```
-
-Restart Home Assistant.
-
-## Configure
-
+## Setup
 1. Go to **Settings > Devices & services > Add integration**.
 2. Search for **Child Medication Dosage**.
 3. Enter the child name, date of birth, and weight in kg.
@@ -60,10 +34,7 @@ Restart Home Assistant.
 6. To add another child later, open the integration options and add another
    child.
 
-After adding another child, Home Assistant reloads the integration so the new
-sensor entities are created.
-
-## Add The Card
+### Add The Card
 
 The card is bundled inside the integration and served by Home Assistant after
 the integration is loaded. Register the dashboard resource:
@@ -91,12 +62,21 @@ title: Medication
 child_name: Child Name
 ```
 
+## Dosage
+
+When you give the child paracetemol/ibuprofen, tab the green button. If the button turns orange, it's because the last dose was given less than 4 hours ago
+
+The dose rules are based on:
+
+- Paracetamol uses the age bands shown at https://www.nhs.uk/medicines/paracetamol-for-children/ and assumes up to four
+  doses in 24 hours.
+- Ibuprofen uses the weight table shown at https://www.nhs.uk/medicines/ibuprofen-for-children/ and a maximum of
+  `30 mg/kg/day`, split into up to four doses.
+- Where a range is given, the integration uses the lower value.
+
+
 You can also use the stable `child_id` instead of `child_name`. Find the
 `child_id` in the attributes of one of the created medication sensors.
-
-The card includes a visual editor in the Home Assistant dashboard card picker.
-Use it to choose the child, toggle row sections, select dose-size behaviour, and
-enter custom medications without editing YAML.
 
 ### Card Options
 
@@ -146,6 +126,8 @@ with `show_paracetamol`, `show_ibuprofen`, or by omitting a custom name from
 options.
 
 ## Services
+
+To call the services from your own card/UI, use these
 
 Record the recommended dose for the selected medicine:
 
